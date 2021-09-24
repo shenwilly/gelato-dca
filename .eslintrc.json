@@ -1,0 +1,44 @@
+{
+    "parser": "@typescript-eslint/parser",
+    "extends": [
+      "plugin:@typescript-eslint/recommended",
+      "plugin:prettier/recommended"
+    ],
+    "ignorePatterns": ["build", "**/vendor/*.js"],
+    "plugins": ["@typescript-eslint", "prettier"],
+    "rules": {
+      "prettier/prettier": "error",
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/camelcase": "off",
+      "@typescript-eslint/no-var-requires": "off",
+      "@typescript-eslint/member-delimiter-style": ["error", {
+        "multiline": {
+          "delimiter": "none",
+          "requireLast": false
+        },
+        "singleline": {
+          "delimiter": "comma",
+          "requireLast": false
+        }
+      }],
+      "react/prop-types": "off",
+      "no-console": "warn",
+      "no-warning-comments": "warn"
+    },
+    "overrides": [
+      {
+          "files": ["hardhat.config.ts"],
+          "globals": { "task": true }
+      },
+      {
+          "files": ["scripts/**"],
+          "rules": { "no-process-exit": "off" }
+      },
+      {
+          "files": ["hardhat.config.ts", "scripts/**", "test/**"],
+          "rules": { "node/no-unpublished-require": "off" }
+      }
+    ]
+  }
+  

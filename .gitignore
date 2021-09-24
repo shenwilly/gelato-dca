@@ -1,0 +1,13 @@
+node_modules
+.env
+.eslintcache
+package-lock.json
+yarn.lock
+yarn-error.log
+coverage.json
+
+#Hardhat files
+cache
+artifacts
+typechain
+coverage
