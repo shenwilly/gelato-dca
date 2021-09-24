@@ -14,8 +14,9 @@ contract DCACore is Ownable {
         address owner;
         address tokenFund;
         address tokenAsset;
-        uint256 amountDeposit;
+        uint256 amountFund;
         uint256 amountDCA;
+        uint256 amountAsset;
         uint256 interval;
         bool active;
     }
