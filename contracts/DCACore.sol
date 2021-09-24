@@ -71,6 +71,15 @@ contract DCACore is Ownable {
         // emit created
     }
 
+    function depositFund(uint256 _positionId, uint256 _amount)
+        external
+        payable
+    {}
+
+    function withdrawFund(uint256 _positionId, uint256 _amount) external {}
+
+    function withdraw(uint256 _positionId) external {}
+
     function doDCA(uint256 _positionId, bytes memory _extraData)
         external
         onlyExecutor
