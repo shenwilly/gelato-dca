@@ -38,24 +38,31 @@ contract DCACore is Ownable {
         executor = _executor;
     }
 
-    function createAndDeposit(
+    function createAndDepositFund(
         address _tokenFund,
         address _tokenAsset,
-        uint256 _amountDeposit,
+        uint256 _amountFund,
         uint256 _amountDCA,
         uint256 _interval
     ) external payable {
         require(allowedTokenFunds[_tokenFund]);
         require(allowedTokenFunds[_tokenAsset]);
         require(allowedPairs[_tokenFund][_tokenAsset]);
-        require(_amountDeposit > 0 && _amountDCA > 0 && _interval >= 60);
+        require(_amountFund > 0 && _amountDCA > 0 && _interval >= 60);
+        require(_amountFund % _amountDCA == 0);
+
+        IERC20(_tokenFund).safeTransferFrom(
+            msg.sender,
+            address(this),
+            _amountFund
+        );
 
         Position memory position;
 
         position.id = positions.length;
         position.tokenFund = _tokenFund;
         position.tokenAsset = _tokenAsset;
-        position.amountDeposit = _amountDeposit;
+        position.amountFund = _amountFund;
         position.amountDCA = _amountDCA;
         position.interval = _interval;
 
