@@ -71,9 +71,25 @@ contract DCACore is Ownable {
         // emit created
     }
 
-    function doDCA(uint256 positionId) external onlyExecutor {
-        Position memory position = positions[positionId];
-        _swap();
+    function doDCA(uint256 _positionId, bytes memory _extraData)
+        external
+        onlyExecutor
+    {
+        (uint256 amountOutMin, address[] memory path) = abi.decode(
+            _extraData,
+            (uint256, address[])
+        );
+
+        Position storage position = positions[_positionId];
+        require(position.amountFund >= position.amountDCA);
+        position.amountFund = position.amountFund - position.amountDCA;
+
+        uint256[] memory amounts = _swap(
+            position.amountDCA,
+            amountOutMin,
+            path
+        );
+        position.amountAsset = position.amountAsset + amounts[1];
     }
 
     function setAllowedTokenFunds(address _token, bool _allowed)
@@ -98,5 +114,18 @@ contract DCACore is Ownable {
         allowedPairs[_tokenFund][_tokenAsset] = _allowed;
     }
 
-    function _swap() internal {}
+    function _swap(
+        uint256 _amountIn,
+        uint256 _amountOutMin,
+        address[] memory _path
+    ) internal returns (uint256[] memory amounts) {
+        return
+            IUniswapV2Router(uniRouter).swapExactTokensForTokens(
+                _amountIn,
+                _amountOutMin,
+                _path,
+                address(this),
+                block.timestamp
+            );
+    }
 }
