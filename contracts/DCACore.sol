@@ -32,8 +32,9 @@ contract DCACore is Ownable {
         _;
     }
 
-    constructor(address _uniRouter) {
+    constructor(address _uniRouter, address _executor) {
         uniRouter = IUniswapV2Router(_uniRouter);
+        executor = _executor;
     }
 
     function createAndDeposit(
