@@ -46,7 +46,31 @@ describe("DCACore", function () {
   });
 
   describe("createAndDepositFund()", async () => {
-    it("should revert", async () => {
+    it("should revert if token fund is not allowed", async () => {
+      // test
+    });
+    it("should revert if token asset is not allowed", async () => {
+      // test
+    });
+    it("should revert if token pair is not allowed", async () => {
+      // test
+    });
+    it("should revert if fund amount is 0", async () => {
+      // test
+    });
+    it("should revert if DCA amount is 0", async () => {
+      // test
+    });
+    it("should revert if interval is less than one minute", async () => {
+      // test
+    });
+    it("should revert if token fund allowance is not enough", async () => {
+      // test
+    });
+    it("should revert if token fund balance is not enough", async () => {
+      // test
+    });
+    it("should create position and deposit fund", async () => {
       // test
     });
   });
