@@ -4,21 +4,11 @@ pragma solidity 0.8.0;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IDCACore} from "./interfaces/IDCACore.sol";
 import {IUniswapV2Router} from "./interfaces/IUniswapV2Router.sol";
 
-contract DCACore is Ownable {
+contract DCACore is IDCACore, Ownable {
     using SafeERC20 for IERC20;
-
-    struct Position {
-        uint256 id;
-        address owner;
-        address tokenFund;
-        address tokenAsset;
-        uint256 amountFund;
-        uint256 amountDCA;
-        uint256 amountAsset;
-        uint256 interval;
-    }
 
     Position[] public positions;
     IUniswapV2Router public uniRouter;
@@ -28,28 +18,6 @@ contract DCACore is Ownable {
     mapping(address => bool) public allowedTokenFunds;
     mapping(address => bool) public allowedTokenAssets;
     mapping(address => mapping(address => bool)) public allowedPairs;
-
-    event PositionCreated(
-        uint256 indexed positionId,
-        address indexed owner,
-        address tokenFund,
-        address tokenAsset,
-        uint256 amountDCA,
-        uint256 interval
-    );
-    event DepositFund(uint256 indexed positionId, uint256 indexed amount);
-    event WithdrawFund(uint256 indexed positionId, uint256 indexed amount);
-    event Withdraw(uint256 indexed positionId, uint256 indexed amount);
-    event ExecuteDCA(uint256 indexed positionId);
-
-    event AllowedTokenFundSet(address indexed token, bool indexed allowed);
-    event AllowedTokenAssetSet(address indexed token, bool indexed allowed);
-    event AllowedPairSet(
-        address indexed tokenFund,
-        address indexed tokenAsset,
-        bool indexed allowed
-    );
-    event PausedSet(bool indexed paused);
 
     modifier onlyExecutor() {
         require(msg.sender == executor, "onlyExecutor:Only Executor");
@@ -90,7 +58,6 @@ contract DCACore is Ownable {
         );
 
         Position memory position;
-
         position.id = positions.length;
         position.tokenFund = _tokenFund;
         position.tokenAsset = _tokenAsset;
@@ -163,6 +130,7 @@ contract DCACore is Ownable {
 
     function executeDCA(uint256 _positionId, bytes memory _extraData)
         external
+        override
         onlyExecutor
         notPaused
     {
