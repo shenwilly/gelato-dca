@@ -24,6 +24,8 @@ contract DCACore is Ownable {
     Position[] public positions;
     IUniswapV2Router public uniRouter;
     address public executor;
+    bool public paused;
+
     mapping(address => bool) public allowedTokenFunds;
     mapping(address => bool) public allowedTokenAssets;
     mapping(address => mapping(address => bool)) public allowedPairs;
@@ -33,9 +35,15 @@ contract DCACore is Ownable {
         _;
     }
 
+    modifier notPaused() {
+        require(!paused);
+        _;
+    }
+
     constructor(address _uniRouter, address _executor) {
         uniRouter = IUniswapV2Router(_uniRouter);
         executor = _executor;
+        paused = false;
     }
 
     function createAndDepositFund(
@@ -44,7 +52,7 @@ contract DCACore is Ownable {
         uint256 _amountFund,
         uint256 _amountDCA,
         uint256 _interval
-    ) external payable {
+    ) external payable notPaused {
         require(allowedTokenFunds[_tokenFund]);
         require(allowedTokenFunds[_tokenAsset]);
         require(allowedPairs[_tokenFund][_tokenAsset]);
@@ -74,15 +82,23 @@ contract DCACore is Ownable {
     function depositFund(uint256 _positionId, uint256 _amount)
         external
         payable
-    {}
+        notPaused
+    {
+        // emit event
+    }
 
-    function withdrawFund(uint256 _positionId, uint256 _amount) external {}
+    function withdrawFund(uint256 _positionId, uint256 _amount) external {
+        // emit event
+    }
 
-    function withdraw(uint256 _positionId) external {}
+    function withdraw(uint256 _positionId) external {
+        // emit event
+    }
 
     function doDCA(uint256 _positionId, bytes memory _extraData)
         external
         onlyExecutor
+        notPaused
     {
         (uint256 amountOutMin, address[] memory path) = abi.decode(
             _extraData,
@@ -93,26 +109,33 @@ contract DCACore is Ownable {
         require(position.amountFund >= position.amountDCA);
         position.amountFund = position.amountFund - position.amountDCA;
 
+        require(allowedPairs[position.tokenFund][position.tokenAsset]);
         uint256[] memory amounts = _swap(
             position.amountDCA,
             amountOutMin,
             path
         );
         position.amountAsset = position.amountAsset + amounts[1];
+
+        // emit event
     }
 
     function setAllowedTokenFunds(address _token, bool _allowed)
         external
         onlyOwner
     {
+        require(allowedTokenFunds[_token] != _allowed);
         allowedTokenFunds[_token] = _allowed;
+        // emit event
     }
 
     function setAllowedTokenAssets(address _token, bool _allowed)
         external
         onlyOwner
     {
+        require(allowedTokenAssets[_token] != _allowed);
         allowedTokenAssets[_token] = _allowed;
+        // emit event
     }
 
     function setAllowedPair(
@@ -120,7 +143,15 @@ contract DCACore is Ownable {
         address _tokenAsset,
         bool _allowed
     ) external onlyOwner {
+        require(allowedPairs[_tokenFund][_tokenAsset] != _allowed);
         allowedPairs[_tokenFund][_tokenAsset] = _allowed;
+        // emit event
+    }
+
+    function setSystemPause(bool _paused) external onlyOwner {
+        require(paused != _paused);
+        paused = _paused;
+        //    emit event
     }
 
     function _swap(
