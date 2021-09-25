@@ -34,4 +34,52 @@ describe("DCACore", function () {
       // test
     });
   });
+
+  describe("depositFund()", async () => {
+    it("should revert", async () => {
+      // test
+    });
+  });
+
+  describe("withdrawFund()", async () => {
+    it("should revert", async () => {
+      // test
+    });
+  });
+
+  describe("withdraw()", async () => {
+    it("should revert", async () => {
+      // test
+    });
+  });
+
+  describe("doDCA()", async () => {
+    it("should revert", async () => {
+      // test
+    });
+  });
+
+  describe("setAllowedTokenFunds()", async () => {
+    it("should revert", async () => {
+      // test
+    });
+  });
+
+  describe("setAllowedTokenAssets()", async () => {
+    it("should revert", async () => {
+      // test
+    });
+  });
+
+  describe("setAllowedPair()", async () => {
+    it("should revert", async () => {
+      // test
+    });
+  });
+
+  describe("setSystemPause()", async () => {
+    it("should revert", async () => {
+      // test
+    });
+  });
 });
