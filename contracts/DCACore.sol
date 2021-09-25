@@ -30,12 +30,12 @@ contract DCACore is Ownable {
     mapping(address => mapping(address => bool)) public allowedPairs;
 
     modifier onlyExecutor() {
-        require(msg.sender == executor, "DCACore::onlyExecutor:Only Executor");
+        require(msg.sender == executor, "onlyExecutor:Only Executor");
         _;
     }
 
     modifier notPaused() {
-        require(!paused, "DCACore::notPaused:System is paused");
+        require(!paused, "notPaused:System is paused");
         _;
     }
 
@@ -52,26 +52,14 @@ contract DCACore is Ownable {
         uint256 _amountDCA,
         uint256 _interval
     ) external payable notPaused {
-        require(
-            allowedTokenFunds[_tokenFund],
-            "DCACore::createAndDepositFund:_tokenFund not allowed"
-        );
-        require(
-            allowedTokenFunds[_tokenAsset],
-            "DCACore::createAndDepositFund:_tokenAsset not allowed"
-        );
-        require(
-            allowedPairs[_tokenFund][_tokenAsset],
-            "DCACore::createAndDepositFund:Pair not allowed"
-        );
+        require(allowedTokenFunds[_tokenFund], "_tokenFund not allowed");
+        require(allowedTokenFunds[_tokenAsset], "_tokenAsset not allowed");
+        require(allowedPairs[_tokenFund][_tokenAsset], "Pair not allowed");
         require(
             _amountFund > 0 && _amountDCA > 0 && _interval >= 60,
-            "DCACore::createAndDepositFund:Invalid inputs"
+            "Invalid inputs"
         );
-        require(
-            _amountFund % _amountDCA == 0,
-            "DCACore::createAndDepositFund:DCA amount token not allowed"
-        );
+        require(_amountFund % _amountDCA == 0, "DCA amount token not allowed");
 
         IERC20(_tokenFund).safeTransferFrom(
             msg.sender,
@@ -98,11 +86,14 @@ contract DCACore is Ownable {
         payable
         notPaused
     {
-        require(_amount > 0);
+        require(_amount > 0, "_amount must be > 0");
         Position storage position = positions[_positionId];
-        require(msg.sender == position.owner);
+        require(msg.sender == position.owner, "Sender must be owner");
         position.amountFund = position.amountFund + _amount;
-        require(position.amountFund % position.amountDCA == 0);
+        require(
+            position.amountFund % position.amountDCA == 0,
+            "Improper amountFund"
+        );
 
         IERC20(position.tokenFund).safeTransferFrom(
             position.owner,
@@ -113,11 +104,14 @@ contract DCACore is Ownable {
     }
 
     function withdrawFund(uint256 _positionId, uint256 _amount) external {
-        require(_amount > 0);
+        require(_amount > 0, "_amount must be > 0");
         Position storage position = positions[_positionId];
-        require(msg.sender == position.owner);
+        require(msg.sender == position.owner, "Sender must be owner");
         position.amountFund = position.amountFund - _amount;
-        require(position.amountFund % position.amountDCA == 0);
+        require(
+            position.amountFund % position.amountDCA == 0,
+            "Improper amountFund"
+        );
 
         IERC20(position.tokenFund).safeTransfer(position.owner, _amount);
         // emit event
@@ -125,8 +119,8 @@ contract DCACore is Ownable {
 
     function withdraw(uint256 _positionId) external {
         Position storage position = positions[_positionId];
-        require(msg.sender == position.owner);
-        require(position.amountAsset > 0);
+        require(msg.sender == position.owner, "Sender must be owner");
+        require(position.amountAsset > 0, "DCA asset amount must be > 0");
 
         uint256 withdrawable = position.amountAsset;
         position.amountAsset = 0;
@@ -146,10 +140,13 @@ contract DCACore is Ownable {
         );
 
         Position storage position = positions[_positionId];
-        require(position.amountFund >= position.amountDCA);
+        require(position.amountFund >= position.amountDCA, "Insufficient fund");
         position.amountFund = position.amountFund - position.amountDCA;
 
-        require(allowedPairs[position.tokenFund][position.tokenAsset]);
+        require(
+            allowedPairs[position.tokenFund][position.tokenAsset],
+            "Token pair not allowed"
+        );
         uint256[] memory amounts = _swap(
             position.amountDCA,
             amountOutMin,
@@ -164,7 +161,7 @@ contract DCACore is Ownable {
         external
         onlyOwner
     {
-        require(allowedTokenFunds[_token] != _allowed);
+        require(allowedTokenFunds[_token] != _allowed, "Same _allowed value");
         allowedTokenFunds[_token] = _allowed;
         // emit event
     }
@@ -173,7 +170,7 @@ contract DCACore is Ownable {
         external
         onlyOwner
     {
-        require(allowedTokenAssets[_token] != _allowed);
+        require(allowedTokenAssets[_token] != _allowed, "Same _allowed value");
         allowedTokenAssets[_token] = _allowed;
         // emit event
     }
@@ -183,13 +180,16 @@ contract DCACore is Ownable {
         address _tokenAsset,
         bool _allowed
     ) external onlyOwner {
-        require(allowedPairs[_tokenFund][_tokenAsset] != _allowed);
+        require(
+            allowedPairs[_tokenFund][_tokenAsset] != _allowed,
+            "Same _allowed value"
+        );
         allowedPairs[_tokenFund][_tokenAsset] = _allowed;
         // emit event
     }
 
     function setSystemPause(bool _paused) external onlyOwner {
-        require(paused != _paused);
+        require(paused != _paused, "Same _paused value");
         paused = _paused;
         //    emit event
     }
@@ -205,7 +205,7 @@ contract DCACore is Ownable {
                 _amountOutMin,
                 _path,
                 address(this),
-                block.timestamp
+                block.timestamp // solhint-disable-line not-rely-on-time,
             );
     }
 
