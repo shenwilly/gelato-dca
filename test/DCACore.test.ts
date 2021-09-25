@@ -64,37 +64,70 @@ describe("DCACore", function () {
     it("should revert if interval is less than one minute", async () => {
       // test
     });
-    it("should revert if token fund allowance is not enough", async () => {
-      // test
-    });
-    it("should revert if token fund balance is not enough", async () => {
-      // test
-    });
     it("should create position and deposit fund", async () => {
       // test
     });
   });
 
   describe("depositFund()", async () => {
-    it("should revert", async () => {
+    it("should revert if position does not exist", async () => {
+      // test
+    });
+    it("should revert if amount is 0", async () => {
+      // test
+    });
+    it("should revert if sender is not position owner", async () => {
+      // test
+    });
+    it("should revert if fund amount modulo DCA amount not equal 0", async () => {
+      // test
+    });
+    it("should deposit fund", async () => {
       // test
     });
   });
 
   describe("withdrawFund()", async () => {
-    it("should revert", async () => {
+    it("should revert if position does not exist", async () => {
+      // test
+    });
+    it("should revert if amount is 0", async () => {
+      // test
+    });
+    it("should revert if sender is not position owner", async () => {
+      // test
+    });
+    it("should revert if fund amount modulo DCA amount not equal 0", async () => {
+      // test
+    });
+    it("should withdraw fund", async () => {
       // test
     });
   });
 
   describe("withdraw()", async () => {
-    it("should revert", async () => {
+    it("should revert if position does not exist", async () => {
+      // test
+    });
+    it("should revert if withdrawable is 0", async () => {
+      // test
+    });
+    it("should withdraw", async () => {
       // test
     });
   });
 
   describe("executeDCA()", async () => {
-    it("should revert", async () => {
+    it("should revert if position does not exist", async () => {
+      // test
+    });
+    it("should revert if position has run out of fund", async () => {
+      // test
+    });
+    it("should revert if token pair is not allowed", async () => {
+      // test
+    });
+    it("should execute DCA", async () => {
       // test
     });
   });
