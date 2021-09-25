@@ -69,7 +69,7 @@ describe("DCACore", function () {
     });
   });
 
-  describe("doDCA()", async () => {
+  describe("executeDCA()", async () => {
     it("should revert", async () => {
       // test
     });

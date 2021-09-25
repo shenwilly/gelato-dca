@@ -29,6 +29,28 @@ contract DCACore is Ownable {
     mapping(address => bool) public allowedTokenAssets;
     mapping(address => mapping(address => bool)) public allowedPairs;
 
+    event PositionCreated(
+        uint256 indexed positionId,
+        address indexed owner,
+        address tokenFund,
+        address tokenAsset,
+        uint256 amountDCA,
+        uint256 interval
+    );
+    event DepositFund(uint256 indexed positionId, uint256 indexed amount);
+    event WithdrawFund(uint256 indexed positionId, uint256 indexed amount);
+    event Withdraw(uint256 indexed positionId, uint256 indexed amount);
+    event ExecuteDCA(uint256 indexed positionId);
+
+    event AllowedTokenFundSet(address indexed token, bool indexed allowed);
+    event AllowedTokenAssetSet(address indexed token, bool indexed allowed);
+    event AllowedPairSet(
+        address indexed tokenFund,
+        address indexed tokenAsset,
+        bool indexed allowed
+    );
+    event PausedSet(bool indexed paused);
+
     modifier onlyExecutor() {
         require(msg.sender == executor, "onlyExecutor:Only Executor");
         _;
@@ -78,7 +100,14 @@ contract DCACore is Ownable {
 
         positions.push(position);
 
-        // emit created
+        emit PositionCreated(
+            position.id,
+            msg.sender,
+            _tokenFund,
+            _tokenAsset,
+            _amountDCA,
+            _interval
+        );
     }
 
     function depositFund(uint256 _positionId, uint256 _amount)
@@ -100,7 +129,8 @@ contract DCACore is Ownable {
             address(this),
             _amount
         );
-        // emit event
+
+        emit DepositFund(_positionId, _amount);
     }
 
     function withdrawFund(uint256 _positionId, uint256 _amount) external {
@@ -114,7 +144,8 @@ contract DCACore is Ownable {
         );
 
         IERC20(position.tokenFund).safeTransfer(position.owner, _amount);
-        // emit event
+
+        emit WithdrawFund(_positionId, _amount);
     }
 
     function withdraw(uint256 _positionId) external {
@@ -126,10 +157,11 @@ contract DCACore is Ownable {
         position.amountAsset = 0;
 
         IERC20(position.tokenAsset).safeTransfer(position.owner, withdrawable);
-        // emit event
+
+        emit Withdraw(_positionId, withdrawable);
     }
 
-    function doDCA(uint256 _positionId, bytes memory _extraData)
+    function executeDCA(uint256 _positionId, bytes memory _extraData)
         external
         onlyExecutor
         notPaused
@@ -154,7 +186,7 @@ contract DCACore is Ownable {
         );
         position.amountAsset = position.amountAsset + amounts[1];
 
-        // emit event
+        emit ExecuteDCA(_positionId);
     }
 
     function setAllowedTokenFunds(address _token, bool _allowed)
@@ -163,7 +195,8 @@ contract DCACore is Ownable {
     {
         require(allowedTokenFunds[_token] != _allowed, "Same _allowed value");
         allowedTokenFunds[_token] = _allowed;
-        // emit event
+
+        emit AllowedTokenFundSet(_token, _allowed);
     }
 
     function setAllowedTokenAssets(address _token, bool _allowed)
@@ -172,7 +205,8 @@ contract DCACore is Ownable {
     {
         require(allowedTokenAssets[_token] != _allowed, "Same _allowed value");
         allowedTokenAssets[_token] = _allowed;
-        // emit event
+
+        emit AllowedTokenAssetSet(_token, _allowed);
     }
 
     function setAllowedPair(
@@ -185,13 +219,15 @@ contract DCACore is Ownable {
             "Same _allowed value"
         );
         allowedPairs[_tokenFund][_tokenAsset] = _allowed;
-        // emit event
+
+        emit AllowedPairSet(_tokenFund, _tokenAsset, _allowed);
     }
 
     function setSystemPause(bool _paused) external onlyOwner {
         require(paused != _paused, "Same _paused value");
         paused = _paused;
-        //    emit event
+
+        emit PausedSet(_paused);
     }
 
     function _swap(
