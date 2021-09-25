@@ -1,10 +1,13 @@
 import { ethers } from "hardhat";
 import { DCACore, DCACore__factory } from "../typechain";
 
+import { FakeContract, smock } from "@defi-wonderland/smock";
 import chai from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { SUSHIWAP_ROUTER_MAINNET } from "../constants";
+
 const { expect } = chai;
+chai.use(smock.matchers);
 
 describe("DCACore", function () {
   let deployer: SignerWithAddress;
