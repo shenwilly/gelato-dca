@@ -40,10 +40,10 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       initialBaseFeePerGas: 0, // workaround from https://github.com/sc-forks/solidity-coverage/issues/652#issuecomment-896330136 . Remove when that issue is closed.
-      allowUnlimitedContractSize: true,
+      // allowUnlimitedContractSize: true,
       forking: {
         url: NETWORK_FORK_URL,
-        blockNumber: 12984971,
+        blockNumber: 13293605,
       },
       // hardfork: "berlin"
     },

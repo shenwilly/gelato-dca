@@ -1,8 +1,9 @@
 import { ethers } from "hardhat";
-import { Greeter__factory } from "../typechain";
+import { DCACore, DCACore__factory } from "../typechain";
 
 import chai from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SUSHIWAP_ROUTER_MAINNET } from "../constants";
 const { expect } = chai;
 
 describe("DCACore", function () {
@@ -13,6 +14,8 @@ describe("DCACore", function () {
   let aliceAddress: string;
   let bobAddress: string;
 
+  let dcaCore: DCACore;
+
   let snapshotId: string;
 
   before("setup contracts", async () => {
@@ -20,6 +23,16 @@ describe("DCACore", function () {
     deployerAddress = deployer.address;
     aliceAddress = alice.address;
     bobAddress = bob.address;
+
+    const DCACoreFactory = (await ethers.getContractFactory(
+      "DCACore",
+      deployer
+    )) as DCACore__factory;
+    dcaCore = await DCACoreFactory.deploy(
+      SUSHIWAP_ROUTER_MAINNET,
+      deployer.address
+    );
+    await dcaCore.deployed();
 
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
