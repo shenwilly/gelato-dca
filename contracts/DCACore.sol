@@ -18,7 +18,6 @@ contract DCACore is Ownable {
         uint256 amountDCA;
         uint256 amountAsset;
         uint256 interval;
-        bool active;
     }
 
     Position[] public positions;
@@ -84,14 +83,40 @@ contract DCACore is Ownable {
         payable
         notPaused
     {
+        require(_amount > 0);
+        Position storage position = positions[_positionId];
+        require(msg.sender == position.owner);
+        position.amountFund = position.amountFund + _amount;
+        require(position.amountFund % position.amountDCA == 0);
+
+        IERC20(position.tokenFund).safeTransferFrom(
+            position.owner,
+            address(this),
+            _amount
+        );
         // emit event
     }
 
     function withdrawFund(uint256 _positionId, uint256 _amount) external {
+        require(_amount > 0);
+        Position storage position = positions[_positionId];
+        require(msg.sender == position.owner);
+        position.amountFund = position.amountFund - _amount;
+        require(position.amountFund % position.amountDCA == 0);
+
+        IERC20(position.tokenFund).safeTransfer(position.owner, _amount);
         // emit event
     }
 
     function withdraw(uint256 _positionId) external {
+        Position storage position = positions[_positionId];
+        require(msg.sender == position.owner);
+        require(position.amountAsset > 0);
+
+        uint256 withdrawable = position.amountAsset;
+        position.amountAsset = 0;
+
+        IERC20(position.tokenAsset).safeTransfer(position.owner, withdrawable);
         // emit event
     }
 
