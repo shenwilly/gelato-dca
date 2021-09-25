@@ -30,12 +30,12 @@ contract DCACore is Ownable {
     mapping(address => mapping(address => bool)) public allowedPairs;
 
     modifier onlyExecutor() {
-        require(msg.sender == executor);
+        require(msg.sender == executor, "DCACore::onlyExecutor:Only Executor");
         _;
     }
 
     modifier notPaused() {
-        require(!paused);
+        require(!paused, "DCACore::notPaused:System is paused");
         _;
     }
 
@@ -52,11 +52,26 @@ contract DCACore is Ownable {
         uint256 _amountDCA,
         uint256 _interval
     ) external payable notPaused {
-        require(allowedTokenFunds[_tokenFund]);
-        require(allowedTokenFunds[_tokenAsset]);
-        require(allowedPairs[_tokenFund][_tokenAsset]);
-        require(_amountFund > 0 && _amountDCA > 0 && _interval >= 60);
-        require(_amountFund % _amountDCA == 0);
+        require(
+            allowedTokenFunds[_tokenFund],
+            "DCACore::createAndDepositFund:_tokenFund not allowed"
+        );
+        require(
+            allowedTokenFunds[_tokenAsset],
+            "DCACore::createAndDepositFund:_tokenAsset not allowed"
+        );
+        require(
+            allowedPairs[_tokenFund][_tokenAsset],
+            "DCACore::createAndDepositFund:Pair not allowed"
+        );
+        require(
+            _amountFund > 0 && _amountDCA > 0 && _interval >= 60,
+            "DCACore::createAndDepositFund:Invalid inputs"
+        );
+        require(
+            _amountFund % _amountDCA == 0,
+            "DCACore::createAndDepositFund:DCA amount token not allowed"
+        );
 
         IERC20(_tokenFund).safeTransferFrom(
             msg.sender,
