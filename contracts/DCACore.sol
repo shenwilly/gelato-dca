@@ -193,4 +193,37 @@ contract DCACore is Ownable {
                 block.timestamp
             );
     }
+
+    function getActivePositionIds() external view returns (uint256[] memory) {
+        uint256 activePositionsLength;
+        for (uint256 i = 0; i < positions.length; i++) {
+            if (positions[i].amountFund > 0) {
+                activePositionsLength++;
+            }
+        }
+
+        uint256 counter;
+        uint256[] memory positionIds = new uint256[](activePositionsLength);
+        for (uint256 i = 0; i < positions.length; i++) {
+            if (positions[i].amountFund > 0) {
+                positionIds[counter] = positions[i].id;
+                counter++;
+            }
+        }
+        return positionIds;
+    }
+
+    function getPositions(uint256[] calldata positionIds)
+        external
+        view
+        returns (Position[] memory)
+    {
+        Position[] memory selectedPositions = new Position[](
+            positionIds.length
+        );
+        for (uint256 i = 0; i < positionIds.length; i++) {
+            selectedPositions[i] = positions[positionIds[i]];
+        }
+        return selectedPositions;
+    }
 }
