@@ -95,4 +95,22 @@ describe("DCACore", function () {
       // test
     });
   });
+
+  describe("_swap()", async () => {
+    it("should revert", async () => {
+      // test
+    });
+  });
+
+  describe("getActivePositionIds()", async () => {
+    it("should revert", async () => {
+      // test
+    });
+  });
+
+  describe("getPositions()", async () => {
+    it("should revert", async () => {
+      // test
+    });
+  });
 });
