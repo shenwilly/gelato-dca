@@ -157,7 +157,7 @@ contract DCACore is IDCACore, Ownable {
         emit ExecuteDCA(_positionId);
     }
 
-    function setAllowedTokenFunds(address _token, bool _allowed)
+    function setAllowedTokenFund(address _token, bool _allowed)
         external
         onlyOwner
     {
@@ -167,7 +167,7 @@ contract DCACore is IDCACore, Ownable {
         emit AllowedTokenFundSet(_token, _allowed);
     }
 
-    function setAllowedTokenAssets(address _token, bool _allowed)
+    function setAllowedTokenAsset(address _token, bool _allowed)
         external
         onlyOwner
     {
@@ -182,6 +182,7 @@ contract DCACore is IDCACore, Ownable {
         address _tokenAsset,
         bool _allowed
     ) external onlyOwner {
+        require(_tokenFund != _tokenAsset, "Duplicate tokens");
         require(
             allowedPairs[_tokenFund][_tokenAsset] != _allowed,
             "Same _allowed value"

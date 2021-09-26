@@ -1,12 +1,22 @@
 import { ethers } from "hardhat";
-import { DCACore, DCACore__factory } from "../typechain";
+import { DCACore, DCACore__factory, IERC20 } from "../typechain";
 
 import { FakeContract, smock } from "@defi-wonderland/smock";
 import chai from "chai";
+import { solidity } from "ethereum-waffle";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { SUSHIWAP_ROUTER_MAINNET } from "../constants";
+import {
+  SUSHIWAP_ROUTER_MAINNET,
+  USDC_ADDRESS,
+  USDC_DECIMALS,
+  WETH_ADDRESS,
+} from "../constants";
+import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
+import { mintUsdc } from "./helpers/utils";
+import { parseUnits } from "@ethersproject/units";
 
 const { expect } = chai;
+chai.use(solidity);
 chai.use(smock.matchers);
 
 describe("DCACore", function () {
@@ -19,6 +29,13 @@ describe("DCACore", function () {
 
   let dcaCore: DCACore;
 
+  let usdc: IERC20;
+  let weth: IERC20;
+
+  let defaultFund: BigNumber;
+  let defaultDCA: BigNumber;
+  let defaultInterval: BigNumberish;
+
   let snapshotId: string;
 
   before("setup contracts", async () => {
@@ -26,6 +43,10 @@ describe("DCACore", function () {
     deployerAddress = deployer.address;
     aliceAddress = alice.address;
     bobAddress = bob.address;
+
+    defaultFund = parseUnits("10000", USDC_DECIMALS);
+    defaultDCA = defaultFund.div(10);
+    defaultInterval = 60; // second;
 
     const DCACoreFactory = (await ethers.getContractFactory(
       "DCACore",
@@ -37,6 +58,17 @@ describe("DCACore", function () {
     );
     await dcaCore.deployed();
 
+    usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
+    weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS);
+
+    await dcaCore.connect(deployer).setAllowedTokenFunds(usdc.address, true);
+    await dcaCore.connect(deployer).setAllowedTokenAssets(weth.address, true);
+    await dcaCore
+      .connect(deployer)
+      .setAllowedPair(usdc.address, weth.address, true);
+
+    await mintUsdc(defaultFund, alice.address);
+
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
 
@@ -47,7 +79,17 @@ describe("DCACore", function () {
 
   describe("createAndDepositFund()", async () => {
     it("should revert if token fund is not allowed", async () => {
-      // test
+      await expect(
+        dcaCore
+          .connect(alice)
+          .createAndDepositFund(
+            weth.address,
+            weth.address,
+            defaultFund,
+            defaultDCA,
+            defaultInterval
+          )
+      ).to.be.revertedWith("_tokenFund not allowed");
     });
     it("should revert if token asset is not allowed", async () => {
       // test
@@ -132,13 +174,13 @@ describe("DCACore", function () {
     });
   });
 
-  describe("setAllowedTokenFunds()", async () => {
+  describe("setAllowedTokenFund()", async () => {
     it("should revert", async () => {
       // test
     });
   });
 
-  describe("setAllowedTokenAssets()", async () => {
+  describe("setAllowedTokenAsset()", async () => {
     it("should revert", async () => {
       // test
     });
