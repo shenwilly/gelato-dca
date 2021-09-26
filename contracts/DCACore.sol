@@ -75,6 +75,7 @@ contract DCACore is IDCACore, Ownable {
             _amountDCA,
             _interval
         );
+        emit DepositFund(position.id, _amountFund);
     }
 
     function depositFund(uint256 _positionId, uint256 _amount)
