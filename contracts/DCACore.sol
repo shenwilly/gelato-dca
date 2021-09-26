@@ -59,6 +59,7 @@ contract DCACore is IDCACore, Ownable {
 
         Position memory position;
         position.id = positions.length;
+        position.owner = msg.sender;
         position.tokenFund = _tokenFund;
         position.tokenAsset = _tokenAsset;
         position.amountFund = _amountFund;
