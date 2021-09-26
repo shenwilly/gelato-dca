@@ -43,13 +43,13 @@ contract DCACore is IDCACore, Ownable {
         uint256 _interval
     ) external payable notPaused {
         require(allowedTokenFunds[_tokenFund], "_tokenFund not allowed");
-        require(allowedTokenFunds[_tokenAsset], "_tokenAsset not allowed");
+        require(allowedTokenAssets[_tokenAsset], "_tokenAsset not allowed");
         require(allowedPairs[_tokenFund][_tokenAsset], "Pair not allowed");
         require(
             _amountFund > 0 && _amountDCA > 0 && _interval >= 60,
             "Invalid inputs"
         );
-        require(_amountFund % _amountDCA == 0, "DCA amount token not allowed");
+        require(_amountFund % _amountDCA == 0, "Improper DCA amount");
 
         IERC20(_tokenFund).safeTransferFrom(
             msg.sender,
@@ -212,6 +212,10 @@ contract DCACore is IDCACore, Ownable {
                 address(this),
                 block.timestamp // solhint-disable-line not-rely-on-time,
             );
+    }
+
+    function getNextPositionId() external view returns (uint256) {
+        return positions.length;
     }
 
     function getActivePositionIds() external view returns (uint256[] memory) {
