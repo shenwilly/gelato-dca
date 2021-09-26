@@ -12,7 +12,7 @@ import {
   WETH_ADDRESS,
 } from "../constants";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
-import { mintUsdc } from "./helpers/utils";
+import { getNextPositionId, mintUsdc } from "./helpers/utils";
 import { parseUnits } from "@ethersproject/units";
 
 const { expect } = chai;
@@ -61,13 +61,13 @@ describe("DCACore", function () {
     usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
     weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS);
 
-    await dcaCore.connect(deployer).setAllowedTokenFunds(usdc.address, true);
-    await dcaCore.connect(deployer).setAllowedTokenAssets(weth.address, true);
+    await dcaCore.connect(deployer).setAllowedTokenFund(usdc.address, true);
+    await dcaCore.connect(deployer).setAllowedTokenAsset(weth.address, true);
     await dcaCore
       .connect(deployer)
       .setAllowedPair(usdc.address, weth.address, true);
 
-    await mintUsdc(defaultFund, alice.address);
+    await mintUsdc(defaultFund, aliceAddress);
 
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
@@ -79,6 +79,7 @@ describe("DCACore", function () {
 
   describe("createAndDepositFund()", async () => {
     it("should revert if token fund is not allowed", async () => {
+      expect(await dcaCore.allowedTokenFunds(weth.address)).to.be.eq(false);
       await expect(
         dcaCore
           .connect(alice)
@@ -92,22 +93,147 @@ describe("DCACore", function () {
       ).to.be.revertedWith("_tokenFund not allowed");
     });
     it("should revert if token asset is not allowed", async () => {
-      // test
+      expect(await dcaCore.allowedTokenAssets(usdc.address)).to.be.eq(false);
+      await expect(
+        dcaCore
+          .connect(alice)
+          .createAndDepositFund(
+            usdc.address,
+            usdc.address,
+            defaultFund,
+            defaultDCA,
+            defaultInterval
+          )
+      ).to.be.revertedWith("_tokenAsset not allowed");
     });
     it("should revert if token pair is not allowed", async () => {
-      // test
+      await dcaCore
+        .connect(deployer)
+        .setAllowedPair(usdc.address, weth.address, false);
+      await expect(
+        dcaCore
+          .connect(alice)
+          .createAndDepositFund(
+            usdc.address,
+            weth.address,
+            defaultFund,
+            defaultDCA,
+            defaultInterval
+          )
+      ).to.be.revertedWith("Pair not allowed");
     });
     it("should revert if fund amount is 0", async () => {
-      // test
+      await expect(
+        dcaCore
+          .connect(alice)
+          .createAndDepositFund(
+            usdc.address,
+            weth.address,
+            0,
+            defaultDCA,
+            defaultInterval
+          )
+      ).to.be.revertedWith("Invalid inputs");
     });
     it("should revert if DCA amount is 0", async () => {
-      // test
+      await expect(
+        dcaCore
+          .connect(alice)
+          .createAndDepositFund(
+            usdc.address,
+            weth.address,
+            defaultFund,
+            0,
+            defaultInterval
+          )
+      ).to.be.revertedWith("Invalid inputs");
     });
     it("should revert if interval is less than one minute", async () => {
-      // test
+      await expect(
+        dcaCore
+          .connect(alice)
+          .createAndDepositFund(
+            usdc.address,
+            weth.address,
+            defaultFund,
+            defaultDCA,
+            0
+          )
+      ).to.be.revertedWith("Invalid inputs");
+
+      await expect(
+        dcaCore
+          .connect(alice)
+          .createAndDepositFund(
+            usdc.address,
+            weth.address,
+            defaultFund,
+            defaultDCA,
+            59
+          )
+      ).to.be.revertedWith("Invalid inputs");
+    });
+    it("should revert if fund amount modulo DCA amount not equal 0", async () => {
+      await expect(
+        dcaCore
+          .connect(alice)
+          .createAndDepositFund(
+            usdc.address,
+            weth.address,
+            100,
+            3,
+            defaultInterval
+          )
+      ).to.be.revertedWith("Improper DCA amount");
     });
     it("should create position and deposit fund", async () => {
-      // test
+      const positionId = await getNextPositionId(dcaCore);
+      await usdc.connect(alice).approve(dcaCore.address, defaultFund);
+
+      const balanceAliceBefore = await usdc.balanceOf(aliceAddress);
+      const balanceContractBefore = await usdc.balanceOf(dcaCore.address);
+
+      const tx = await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+
+      expect(tx)
+        .to.emit(dcaCore, "PositionCreated")
+        .withArgs(
+          positionId,
+          aliceAddress,
+          usdc.address,
+          weth.address,
+          defaultDCA,
+          defaultInterval
+        );
+      expect(tx)
+        .to.emit(dcaCore, "DepositFund")
+        .withArgs(positionId, defaultFund);
+
+      const balanceAliceAfter = await usdc.balanceOf(aliceAddress);
+      const balanceContractAfter = await usdc.balanceOf(dcaCore.address);
+
+      expect(balanceAliceBefore.sub(balanceAliceAfter)).to.be.eq(defaultFund);
+      expect(balanceContractAfter.sub(balanceContractBefore)).to.be.eq(
+        defaultFund
+      );
+
+      const position = await dcaCore.positions(positionId);
+      expect(position[0]).to.be.eq(positionId);
+      expect(position[1]).to.be.eq(aliceAddress);
+      expect(position[2]).to.be.eq(usdc.address);
+      expect(position[3]).to.be.eq(weth.address);
+      expect(position[4]).to.be.eq(defaultFund);
+      expect(position[5]).to.be.eq(defaultDCA);
+      expect(position[6]).to.be.eq(0);
+      expect(position[7]).to.be.eq(defaultInterval);
     });
   });
 

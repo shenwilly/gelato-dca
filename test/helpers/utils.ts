@@ -1,6 +1,13 @@
-import { BigNumberish } from "ethers/lib/ethers";
+import { BigNumber, BigNumberish } from "ethers/lib/ethers";
 import { ethers, network } from "hardhat";
 import { USDC_ADDRESS, USDC_MINTER } from "../../constants";
+import { DCACore } from "../../typechain";
+
+export const getNextPositionId = async (
+  dcaCore: DCACore
+): Promise<BigNumber> => {
+  return await dcaCore.getNextPositionId();
+};
 
 export const mintUsdc = async (amount: BigNumberish, to: string) => {
   const usdc = await ethers.getContractAt("IERC20", USDC_ADDRESS);
