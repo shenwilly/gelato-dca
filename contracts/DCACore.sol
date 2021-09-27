@@ -164,6 +164,8 @@ contract DCACore is IDCACore, Ownable {
         emit ExecuteDCA(_positionId);
     }
 
+    // 1. multiple DCAs over the same pair could cause unexpected slippage
+    // 2. unbounded loop could cause gas limit revert
     function executeDCAs(
         uint256[] calldata _positionIds,
         DCAExtraData[] calldata _extraDatas
