@@ -20,12 +20,12 @@ contract DCACore is IDCACore, Ownable {
     mapping(address => mapping(address => bool)) public allowedPairs;
 
     modifier onlyExecutor() {
-        require(msg.sender == executor, "onlyExecutor:Only Executor");
+        require(msg.sender == executor, "Only Executor");
         _;
     }
 
     modifier notPaused() {
-        require(!paused, "notPaused:System is paused");
+        require(!paused, "System is paused");
         _;
     }
 
