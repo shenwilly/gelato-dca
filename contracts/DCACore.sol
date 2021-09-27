@@ -149,6 +149,10 @@ contract DCACore is IDCACore, Ownable {
             allowedPairs[position.tokenFund][position.tokenAsset],
             "Token pair not allowed"
         );
+        IERC20(position.tokenFund).approve(
+            address(uniRouter),
+            position.amountDCA
+        );
         uint256[] memory amounts = _swap(
             position.amountDCA,
             _extraData.swapAmountOutMin,
