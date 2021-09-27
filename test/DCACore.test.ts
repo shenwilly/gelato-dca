@@ -546,26 +546,109 @@ describe("DCACore", function () {
   });
 
   describe("setAllowedTokenFund()", async () => {
-    it("should revert", async () => {
-      // test
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        dcaCore.connect(alice).setAllowedTokenFund(usdc.address, false)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+    it("should revert if new value is same to old value", async () => {
+      expect(await dcaCore.allowedTokenFunds(usdc.address)).to.be.eq(true);
+      await expect(
+        dcaCore.connect(deployer).setAllowedTokenFund(usdc.address, true)
+      ).to.be.revertedWith("Same _allowed value");
+    });
+    it("should set new value", async () => {
+      expect(await dcaCore.allowedTokenFunds(usdc.address)).to.be.eq(true);
+      await expect(
+        dcaCore.connect(deployer).setAllowedTokenFund(usdc.address, false)
+      )
+        .to.emit(dcaCore, "AllowedTokenFundSet")
+        .withArgs(usdc.address, false);
+      expect(await dcaCore.allowedTokenFunds(usdc.address)).to.be.eq(false);
     });
   });
 
   describe("setAllowedTokenAsset()", async () => {
-    it("should revert", async () => {
-      // test
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        dcaCore.connect(alice).setAllowedTokenAsset(weth.address, false)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+    it("should revert if new value is same to old value", async () => {
+      expect(await dcaCore.allowedTokenAssets(weth.address)).to.be.eq(true);
+      await expect(
+        dcaCore.connect(deployer).setAllowedTokenAsset(weth.address, true)
+      ).to.be.revertedWith("Same _allowed value");
+    });
+    it("should set new value", async () => {
+      expect(await dcaCore.allowedTokenAssets(weth.address)).to.be.eq(true);
+      await expect(
+        dcaCore.connect(deployer).setAllowedTokenAsset(weth.address, false)
+      )
+        .to.emit(dcaCore, "AllowedTokenAssetSet")
+        .withArgs(weth.address, false);
+      expect(await dcaCore.allowedTokenAssets(weth.address)).to.be.eq(false);
     });
   });
 
   describe("setAllowedPair()", async () => {
-    it("should revert", async () => {
-      // test
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        dcaCore.connect(alice).setAllowedPair(usdc.address, weth.address, false)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+    it("should revert if fund token equal asset token", async () => {
+      await expect(
+        dcaCore
+          .connect(deployer)
+          .setAllowedPair(usdc.address, usdc.address, false)
+      ).to.be.revertedWith("Duplicate tokens");
+    });
+    it("should revert if new value is same to old value", async () => {
+      expect(await dcaCore.allowedPairs(usdc.address, weth.address)).to.be.eq(
+        true
+      );
+      await expect(
+        dcaCore
+          .connect(deployer)
+          .setAllowedPair(usdc.address, weth.address, true)
+      ).to.be.revertedWith("Same _allowed value");
+    });
+    it("should set new value", async () => {
+      expect(await dcaCore.allowedPairs(usdc.address, weth.address)).to.be.eq(
+        true
+      );
+      await expect(
+        dcaCore
+          .connect(deployer)
+          .setAllowedPair(usdc.address, weth.address, false)
+      )
+        .to.emit(dcaCore, "AllowedPairSet")
+        .withArgs(usdc.address, weth.address, false);
+      expect(await dcaCore.allowedPairs(usdc.address, weth.address)).to.be.eq(
+        false
+      );
     });
   });
 
   describe("setSystemPause()", async () => {
-    it("should revert", async () => {
-      // test
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        dcaCore.connect(alice).setSystemPause(false)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+    it("should revert if new value is same to old value", async () => {
+      expect(await dcaCore.paused()).to.be.eq(false);
+      await expect(
+        dcaCore.connect(deployer).setSystemPause(false)
+      ).to.be.revertedWith("Same _paused value");
+    });
+    it("should set new value", async () => {
+      expect(await dcaCore.paused()).to.be.eq(false);
+      await expect(dcaCore.connect(deployer).setSystemPause(true))
+        .to.emit(dcaCore, "PausedSet")
+        .withArgs(true);
+      expect(await dcaCore.paused()).to.be.eq(true);
     });
   });
 
