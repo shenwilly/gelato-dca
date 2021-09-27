@@ -130,29 +130,29 @@ contract DCACore is IDCACore, Ownable {
         emit Withdraw(_positionId, withdrawable);
     }
 
-    function executeDCA(uint256 _positionId, bytes memory _extraData)
+    function executeDCA(uint256 _positionId, DCAExtraData calldata _extraData)
         external
         override
         onlyExecutor
         notPaused
     {
-        (uint256 amountOutMin, address[] memory path) = abi.decode(
-            _extraData,
-            (uint256, address[])
-        );
-
         Position storage position = positions[_positionId];
         require(position.amountFund >= position.amountDCA, "Insufficient fund");
         position.amountFund = position.amountFund - position.amountDCA;
 
+        require(
+            position.tokenFund == _extraData.swapPath[0] &&
+                position.tokenAsset == _extraData.swapPath[1],
+            "Invalid swap path"
+        );
         require(
             allowedPairs[position.tokenFund][position.tokenAsset],
             "Token pair not allowed"
         );
         uint256[] memory amounts = _swap(
             position.amountDCA,
-            amountOutMin,
-            path
+            _extraData.swapAmountOutMin,
+            _extraData.swapPath
         );
         position.amountAsset = position.amountAsset + amounts[1];
 

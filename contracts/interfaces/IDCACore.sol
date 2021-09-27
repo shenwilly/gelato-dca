@@ -13,6 +13,13 @@ interface IDCACore {
         uint256 interval;
     }
 
+    struct DCAExtraData {
+        // minimal swap output amount to prevent manipulation
+        uint256 swapAmountOutMin;
+        // swap path
+        address[] swapPath;
+    }
+
     event PositionCreated(
         uint256 indexed positionId,
         address indexed owner,
@@ -35,5 +42,6 @@ interface IDCACore {
     );
     event PausedSet(bool indexed paused);
 
-    function executeDCA(uint256 _positionId, bytes memory _extraData) external;
+    function executeDCA(uint256 _positionId, DCAExtraData calldata _extraData)
+        external;
 }
