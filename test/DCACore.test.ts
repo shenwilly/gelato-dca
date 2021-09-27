@@ -23,9 +23,11 @@ describe("DCACore", function () {
   let deployer: SignerWithAddress;
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
+  let executor: SignerWithAddress;
   let deployerAddress: string;
   let aliceAddress: string;
   let bobAddress: string;
+  let executorAddress: string;
 
   let dcaCore: DCACore;
 
@@ -39,10 +41,11 @@ describe("DCACore", function () {
   let snapshotId: string;
 
   before("setup contracts", async () => {
-    [deployer, alice, bob] = await ethers.getSigners();
+    [deployer, alice, bob, executor] = await ethers.getSigners();
     deployerAddress = deployer.address;
     aliceAddress = alice.address;
     bobAddress = bob.address;
+    executorAddress = executor.address;
 
     defaultFund = parseUnits("10000", USDC_DECIMALS);
     defaultDCA = defaultFund.div(10);
@@ -54,7 +57,7 @@ describe("DCACore", function () {
     )) as DCACore__factory;
     dcaCore = await DCACoreFactory.deploy(
       SUSHIWAP_ROUTER_MAINNET,
-      deployer.address
+      executorAddress
     );
     await dcaCore.deployed();
 
@@ -366,14 +369,69 @@ describe("DCACore", function () {
   });
 
   describe("withdraw()", async () => {
+    let positionId: BigNumber;
+
+    beforeEach(async () => {
+      positionId = await getNextPositionId(dcaCore);
+      await usdc
+        .connect(alice)
+        .approve(dcaCore.address, ethers.constants.MaxUint256);
+
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+    });
+
     it("should revert if position does not exist", async () => {
-      // test
+      await expect(
+        dcaCore.connect(alice).withdraw(positionId.add(1))
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index"
+      );
+    });
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        dcaCore.connect(bob).withdraw(positionId)
+      ).to.be.revertedWith("Sender must be owner");
     });
     it("should revert if withdrawable is 0", async () => {
-      // test
+      await expect(
+        dcaCore.connect(alice).withdraw(positionId)
+      ).to.be.revertedWith("DCA asset amount must be > 0");
     });
     it("should withdraw", async () => {
-      // test
+      await dcaCore.connect(executor).executeDCA(positionId, {
+        swapAmountOutMin: 0,
+        swapPath: [usdc.address, weth.address],
+      });
+
+      const positionPre = await dcaCore.positions(positionId);
+      const withdrawable = positionPre[6];
+      expect(withdrawable).to.be.gt(0);
+
+      const balanceAliceBefore = await weth.balanceOf(aliceAddress);
+      const balanceContractBefore = await weth.balanceOf(dcaCore.address);
+
+      await expect(dcaCore.connect(alice).withdraw(positionId))
+        .to.emit(dcaCore, "Withdraw")
+        .withArgs(positionId, withdrawable);
+
+      const balanceAliceAfter = await weth.balanceOf(aliceAddress);
+      const balanceContractAfter = await weth.balanceOf(dcaCore.address);
+
+      expect(balanceAliceAfter.sub(balanceAliceBefore)).to.be.eq(withdrawable);
+      expect(balanceContractBefore.sub(balanceContractAfter)).to.be.eq(
+        withdrawable
+      );
+
+      const positionPost = await dcaCore.positions(positionId);
+      expect(positionPost[6]).to.be.eq(0);
     });
   });
 
