@@ -1,7 +1,6 @@
 import { ethers } from "hardhat";
 import { DCACore, DCACore__factory, IERC20 } from "../typechain";
 
-import { FakeContract, smock } from "@defi-wonderland/smock";
 import chai from "chai";
 import { solidity } from "ethereum-waffle";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
@@ -22,9 +21,7 @@ import { parseUnits } from "@ethersproject/units";
 
 const { expect } = chai;
 chai.use(solidity);
-chai.use(smock.matchers);
 
-// TODO: NotPaused test cases
 describe("DCACore", function () {
   let deployer: SignerWithAddress;
   let alice: SignerWithAddress;
