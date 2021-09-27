@@ -658,15 +658,119 @@ describe("DCACore", function () {
     });
   });
 
+  describe("getNextPositionId()", async () => {
+    it("should get next positionId", async () => {
+      expect(await dcaCore.getNextPositionId()).to.be.eq(0);
+
+      await usdc
+        .connect(alice)
+        .approve(dcaCore.address, ethers.constants.MaxUint256);
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+
+      expect(await dcaCore.getNextPositionId()).to.be.eq(1);
+    });
+  });
+
   describe("getActivePositionIds()", async () => {
-    it("should revert", async () => {
-      // test
+    it("should return ids of active positions", async () => {
+      await mintUsdc(defaultFund.mul(10), aliceAddress);
+      await usdc
+        .connect(alice)
+        .approve(dcaCore.address, ethers.constants.MaxUint256);
+
+      const emptyIds = await dcaCore.getActivePositionIds();
+      expect(emptyIds.length).to.be.eq(0);
+
+      const positionId1 = await getNextPositionId(dcaCore);
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+      const activePositions1 = await dcaCore.getActivePositionIds();
+      expect(activePositions1.length).to.be.eq(1);
+      expect(activePositions1[0]).to.be.eq(positionId1);
+
+      const positionId2 = await getNextPositionId(dcaCore);
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+      const activePositions2 = await dcaCore.getActivePositionIds();
+      expect(activePositions2.length).to.be.eq(2);
+      expect(activePositions2[0]).to.be.eq(positionId1);
+      expect(activePositions2[1]).to.be.eq(positionId2);
+
+      await dcaCore.connect(alice).withdrawFund(positionId1, defaultFund);
+      const activePositions3 = await dcaCore.getActivePositionIds();
+      expect(activePositions3.length).to.be.eq(1);
+      expect(activePositions3[0]).to.be.eq(positionId2);
     });
   });
 
   describe("getPositions()", async () => {
-    it("should revert", async () => {
-      // test
+    it("should revert if positionId does not exist", async () => {
+      const positionId = await getNextPositionId(dcaCore);
+      await expect(dcaCore.getPositions([positionId])).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index"
+      );
+    });
+    it("should return selected positions", async () => {
+      await mintUsdc(defaultFund.mul(10), aliceAddress);
+      await usdc
+        .connect(alice)
+        .approve(dcaCore.address, ethers.constants.MaxUint256);
+
+      const emptyPositions = await dcaCore.getPositions([]);
+      expect(emptyPositions.length).to.be.eq(0);
+
+      const positionId1 = await getNextPositionId(dcaCore);
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+
+      const positions1 = await dcaCore.getPositions([positionId1]);
+      expect(positions1.length).to.be.eq(1);
+      expect(positions1[0].id).to.be.eq(positionId1);
+
+      const positionId2 = await getNextPositionId(dcaCore);
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+
+      const positions2 = await dcaCore.getPositions([positionId1, positionId2]);
+      expect(positions2.length).to.be.eq(2);
+      expect(positions2[0].id).to.be.eq(positionId1);
+      expect(positions2[1].id).to.be.eq(positionId2);
     });
   });
 });
