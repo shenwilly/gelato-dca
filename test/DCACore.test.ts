@@ -103,6 +103,20 @@ describe("DCACore", function () {
           )
       ).to.be.revertedWith("_tokenFund not allowed");
     });
+    it("should revert if system is paused", async () => {
+      await dcaCore.connect(deployer).setSystemPause(true);
+      await expect(
+        dcaCore
+          .connect(alice)
+          .createAndDepositFund(
+            usdc.address,
+            usdc.address,
+            defaultFund,
+            defaultDCA,
+            defaultInterval
+          )
+      ).to.be.revertedWith("System is paused");
+    });
     it("should revert if token asset is not allowed", async () => {
       expect(await dcaCore.allowedTokenAssets(usdc.address)).to.be.eq(false);
       await expect(
@@ -275,6 +289,12 @@ describe("DCACore", function () {
       ).to.be.revertedWith(
         "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index"
       );
+    });
+    it("should revert if system is paused", async () => {
+      await dcaCore.connect(deployer).setSystemPause(true);
+      await expect(
+        dcaCore.connect(alice).depositFund(positionId.add(1), 1)
+      ).to.be.revertedWith("System is paused");
     });
     it("should revert if amount is 0", async () => {
       await expect(
@@ -481,6 +501,16 @@ describe("DCACore", function () {
           swapPath: defaultSwapPath,
         })
       ).to.be.revertedWith("Only Executor");
+    });
+
+    it("should revert if system is paused", async () => {
+      await dcaCore.connect(deployer).setSystemPause(true);
+      await expect(
+        dcaCore.connect(executor).executeDCA(positionId, {
+          swapAmountOutMin: 0,
+          swapPath: defaultSwapPath,
+        })
+      ).to.be.revertedWith("System is paused");
     });
     it("should revert if position has run out of fund", async () => {
       await dcaCore.connect(alice).withdrawFund(positionId, defaultFund);
