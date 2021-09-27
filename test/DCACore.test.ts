@@ -303,20 +303,65 @@ describe("DCACore", function () {
   });
 
   describe("withdrawFund()", async () => {
+    let positionId: BigNumber;
+
+    beforeEach(async () => {
+      positionId = await getNextPositionId(dcaCore);
+      await usdc
+        .connect(alice)
+        .approve(dcaCore.address, ethers.constants.MaxUint256);
+
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+    });
+
     it("should revert if position does not exist", async () => {
-      // test
+      await expect(
+        dcaCore.connect(alice).withdrawFund(positionId.add(1), 1)
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index"
+      );
     });
     it("should revert if amount is 0", async () => {
-      // test
+      await expect(
+        dcaCore.connect(alice).withdrawFund(positionId, 0)
+      ).to.be.revertedWith("_amount must be > 0");
     });
     it("should revert if sender is not position owner", async () => {
-      // test
+      await expect(
+        dcaCore.connect(bob).withdrawFund(positionId, 1)
+      ).to.be.revertedWith("Sender must be owner");
     });
     it("should revert if fund amount modulo DCA amount not equal 0", async () => {
-      // test
+      await expect(
+        dcaCore.connect(alice).withdrawFund(positionId, defaultDCA.sub(1))
+      ).to.be.revertedWith("Improper amountFund");
     });
     it("should withdraw fund", async () => {
-      // test
+      const balanceAliceBefore = await usdc.balanceOf(aliceAddress);
+      const balanceContractBefore = await usdc.balanceOf(dcaCore.address);
+
+      await expect(dcaCore.connect(alice).withdrawFund(positionId, defaultDCA))
+        .to.emit(dcaCore, "WithdrawFund")
+        .withArgs(positionId, defaultDCA);
+
+      const balanceAliceAfter = await usdc.balanceOf(aliceAddress);
+      const balanceContractAfter = await usdc.balanceOf(dcaCore.address);
+
+      expect(balanceAliceAfter.sub(balanceAliceBefore)).to.be.eq(defaultDCA);
+      expect(balanceContractBefore.sub(balanceContractAfter)).to.be.eq(
+        defaultDCA
+      );
+
+      const position = await dcaCore.positions(positionId);
+      expect(position[4]).to.be.eq(defaultFund.sub(defaultDCA));
     });
   });
 
