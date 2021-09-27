@@ -616,6 +616,103 @@ describe("DCACore", function () {
     });
   });
 
+  describe("executeDCAs()", async () => {
+    let positionIds: BigNumber[];
+
+    beforeEach(async () => {
+      await mintUsdc(defaultFund, aliceAddress);
+      await mintUsdc(defaultFund, bobAddress);
+      await usdc
+        .connect(alice)
+        .approve(dcaCore.address, ethers.constants.MaxUint256);
+      await usdc
+        .connect(bob)
+        .approve(dcaCore.address, ethers.constants.MaxUint256);
+
+      positionIds = [];
+      positionIds.push(await getNextPositionId(dcaCore));
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+
+      positionIds.push(await getNextPositionId(dcaCore));
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+
+      positionIds.push(await getNextPositionId(dcaCore));
+      await dcaCore
+        .connect(bob)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA.mul(2),
+          defaultInterval
+        );
+    });
+
+    it("should revert if params length not equal", async () => {
+      await expect(
+        dcaCore.connect(executor).executeDCAs([1], [])
+      ).to.be.revertedWith("Params lengths must be equal");
+    });
+    it("should execute multiple DCAs", async () => {
+      const positionAlice = await dcaCore.positions(positionIds[0]);
+      const dcaAmountAlice = positionAlice[5];
+      const positionBob = await dcaCore.positions(positionIds[2]);
+      const dcaAmountBob = positionBob[5];
+
+      const balanceFundBefore = await usdc.balanceOf(dcaCore.address);
+      const balanceAssetBefore = await weth.balanceOf(dcaCore.address);
+
+      const uniRouter = await ethers.getContractAt(
+        "IUniswapV2Router",
+        SUSHIWAP_ROUTER_MAINNET
+      );
+      const swapAmountsAlice = await uniRouter.getAmountsOut(
+        dcaAmountAlice,
+        defaultSwapPath
+      );
+      const swapAmountsBob = await uniRouter.getAmountsOut(
+        dcaAmountBob,
+        defaultSwapPath
+      );
+      const swapAmountAlice = swapAmountsAlice[1].mul(995).div(1000); // 0.5% slippage
+      const swapAmountBob = swapAmountsBob[1].mul(995).div(1000); // 0.5% slippage
+
+      await dcaCore.connect(executor).executeDCAs(positionIds, [
+        { swapAmountOutMin: swapAmountAlice, swapPath: defaultSwapPath },
+        { swapAmountOutMin: swapAmountAlice, swapPath: defaultSwapPath },
+        { swapAmountOutMin: swapAmountBob, swapPath: defaultSwapPath },
+      ]);
+
+      const balanceFundAfter = await usdc.balanceOf(dcaCore.address);
+      const balanceAssetAfter = await weth.balanceOf(dcaCore.address);
+
+      expect(balanceFundBefore.sub(balanceFundAfter)).to.be.eq(
+        defaultDCA.mul(4)
+      ); // 2 alice + 2 bob
+
+      const wethDifference = balanceAssetAfter.sub(balanceAssetBefore);
+      expect(wethDifference).to.be.gte(
+        swapAmountAlice.mul(2).add(swapAmountBob)
+      );
+    });
+  });
+
   describe("setAllowedTokenFund()", async () => {
     it("should revert if sender is not owner", async () => {
       await expect(
@@ -725,7 +822,7 @@ describe("DCACore", function () {
 
   describe("_swap()", async () => {
     it("should revert", async () => {
-      // test
+      // TODO: WRAPPER
     });
   });
 
@@ -750,14 +847,14 @@ describe("DCACore", function () {
     });
   });
 
-  describe("getActivePositionIds()", async () => {
+  describe("getReadyPositionIds()", async () => {
     it("should return ids of active positions", async () => {
       await mintUsdc(defaultFund.mul(10), aliceAddress);
       await usdc
         .connect(alice)
         .approve(dcaCore.address, ethers.constants.MaxUint256);
 
-      const emptyIds = await dcaCore.getActivePositionIds();
+      const emptyIds = await dcaCore.getReadyPositionIds();
       expect(emptyIds.length).to.be.eq(0);
 
       const positionId1 = await getNextPositionId(dcaCore);
@@ -770,7 +867,7 @@ describe("DCACore", function () {
           defaultDCA,
           defaultInterval
         );
-      const activePositions1 = await dcaCore.getActivePositionIds();
+      const activePositions1 = await dcaCore.getReadyPositionIds();
       expect(activePositions1.length).to.be.eq(1);
       expect(activePositions1[0]).to.be.eq(positionId1);
 
@@ -784,13 +881,13 @@ describe("DCACore", function () {
           defaultDCA,
           defaultInterval
         );
-      const activePositions2 = await dcaCore.getActivePositionIds();
+      const activePositions2 = await dcaCore.getReadyPositionIds();
       expect(activePositions2.length).to.be.eq(2);
       expect(activePositions2[0]).to.be.eq(positionId1);
       expect(activePositions2[1]).to.be.eq(positionId2);
 
       await dcaCore.connect(alice).withdrawFund(positionId1, defaultFund);
-      const activePositions3 = await dcaCore.getActivePositionIds();
+      const activePositions3 = await dcaCore.getReadyPositionIds();
       expect(activePositions3.length).to.be.eq(1);
       expect(activePositions3[0]).to.be.eq(positionId2);
     });
