@@ -12,7 +12,12 @@ import {
   WETH_ADDRESS,
 } from "../constants";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
-import { getNextPositionId, mintUsdc } from "./helpers/utils";
+import {
+  fastForwardTo,
+  getCurrentTimestamp,
+  getNextPositionId,
+  mintUsdc,
+} from "./helpers/utils";
 import { parseUnits } from "@ethersproject/units";
 
 const { expect } = chai;
@@ -240,6 +245,7 @@ describe("DCACore", function () {
       expect(position[5]).to.be.eq(defaultDCA);
       expect(position[6]).to.be.eq(0);
       expect(position[7]).to.be.eq(defaultInterval);
+      expect(position[8]).to.be.eq(0);
     });
   });
 
@@ -506,6 +512,26 @@ describe("DCACore", function () {
         })
       ).to.be.revertedWith("Token pair not allowed");
     });
+    it("should revert if it's not time to DCA", async () => {
+      const positionPre = await dcaCore.positions(positionId);
+      expect(positionPre[8]).to.be.eq(0);
+
+      await dcaCore.connect(executor).executeDCA(positionId, {
+        swapAmountOutMin: 0,
+        swapPath: defaultSwapPath,
+      });
+
+      const now = await getCurrentTimestamp();
+      const positionPost = await dcaCore.positions(positionId);
+      expect(positionPost[8]).to.be.eq(now);
+
+      await expect(
+        dcaCore.connect(executor).executeDCA(positionId, {
+          swapAmountOutMin: 0,
+          swapPath: defaultSwapPath,
+        })
+      ).to.be.revertedWith("Not time to DCA");
+    });
     it("should execute DCA", async () => {
       const positionPre = await dcaCore.positions(positionId);
       const dcaAmount = positionPre[5];
@@ -517,14 +543,14 @@ describe("DCACore", function () {
         "IUniswapV2Router",
         SUSHIWAP_ROUTER_MAINNET
       );
-      const swapAmounts = await uniRouter.getAmountsOut(dcaAmount, [
+      const swapAmounts1 = await uniRouter.getAmountsOut(dcaAmount, [
         usdc.address,
         weth.address,
       ]);
 
       await expect(
         dcaCore.connect(executor).executeDCA(positionId, {
-          swapAmountOutMin: swapAmounts[1],
+          swapAmountOutMin: swapAmounts1[1],
           swapPath: defaultSwapPath,
         })
       )
@@ -537,11 +563,29 @@ describe("DCACore", function () {
       expect(balanceFundBefore.sub(balanceFundAfter)).to.be.eq(defaultDCA);
 
       const wethDifference = balanceAssetAfter.sub(balanceAssetBefore);
-      expect(wethDifference).to.be.gte(swapAmounts[1]);
+      expect(wethDifference).to.be.gte(swapAmounts1[1]);
 
       const positionPost = await dcaCore.positions(positionId);
       expect(positionPost[4]).to.be.eq(defaultFund.sub(defaultDCA));
       expect(positionPost[6]).to.be.eq(wethDifference);
+
+      const lastDCA = BigNumber.from(positionPost[8]);
+      const nextDCA = lastDCA.add(positionPost[7]);
+
+      await fastForwardTo(nextDCA.toNumber());
+
+      const swapAmounts2 = await uniRouter.getAmountsOut(dcaAmount, [
+        usdc.address,
+        weth.address,
+      ]);
+      await expect(
+        dcaCore.connect(executor).executeDCA(positionId, {
+          swapAmountOutMin: swapAmounts2[1],
+          swapPath: defaultSwapPath,
+        })
+      )
+        .to.emit(dcaCore, "ExecuteDCA")
+        .withArgs(positionId);
     });
   });
 
