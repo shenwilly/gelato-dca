@@ -137,14 +137,21 @@ contract DCACore is IDCACore, Ownable {
         notPaused
     {
         Position storage position = positions[_positionId];
-        require(position.amountFund >= position.amountDCA, "Insufficient fund");
-        position.amountFund = position.amountFund - position.amountDCA;
 
+        require(
+            block.timestamp >= position.lastDCA + position.interval, // solhint-disable-line not-rely-on-time
+            "Not time to DCA"
+        );
         require(
             position.tokenFund == _extraData.swapPath[0] &&
                 position.tokenAsset == _extraData.swapPath[1],
             "Invalid swap path"
         );
+        require(position.amountFund >= position.amountDCA, "Insufficient fund");
+
+        position.lastDCA = block.timestamp; // solhint-disable-line not-rely-on-time
+        position.amountFund = position.amountFund - position.amountDCA;
+
         require(
             allowedPairs[position.tokenFund][position.tokenAsset],
             "Token pair not allowed"
@@ -224,7 +231,12 @@ contract DCACore is IDCACore, Ownable {
         return positions.length;
     }
 
-    function getActivePositionIds() external view returns (uint256[] memory) {
+    function getActivePositionIds()
+        external
+        view
+        override
+        returns (uint256[] memory)
+    {
         uint256 activePositionsLength;
         for (uint256 i = 0; i < positions.length; i++) {
             if (positions[i].amountFund > 0) {
@@ -246,6 +258,7 @@ contract DCACore is IDCACore, Ownable {
     function getPositions(uint256[] calldata positionIds)
         external
         view
+        override
         returns (Position[] memory)
     {
         Position[] memory selectedPositions = new Position[](

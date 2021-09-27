@@ -11,6 +11,7 @@ interface IDCACore {
         uint256 amountDCA;
         uint256 amountAsset;
         uint256 interval;
+        uint256 lastDCA; //timestamp
     }
 
     struct DCAExtraData {
@@ -44,4 +45,11 @@ interface IDCACore {
 
     function executeDCA(uint256 _positionId, DCAExtraData calldata _extraData)
         external;
+
+    function getActivePositionIds() external view returns (uint256[] memory);
+
+    function getPositions(uint256[] calldata positionIds)
+        external
+        view
+        returns (Position[] memory);
 }
