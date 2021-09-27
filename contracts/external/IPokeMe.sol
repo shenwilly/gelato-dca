@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.0;
 
-interface PokeMe {
+interface IPokeMe {
     function createTask(
         address _execAddress,
         bytes4 _execSelector,
