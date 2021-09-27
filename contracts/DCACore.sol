@@ -131,31 +131,25 @@ contract DCACore is IDCACore, Ownable {
     }
 
     function executeDCA(uint256 _positionId, DCAExtraData calldata _extraData)
-        external
+        public
         override
         onlyExecutor
         notPaused
     {
         Position storage position = positions[_positionId];
 
-        require(
-            block.timestamp >= position.lastDCA + position.interval, // solhint-disable-line not-rely-on-time
-            "Not time to DCA"
-        );
+        (bool ready, string memory notReadyReason) = _checkReadyDCA(position);
+        if (!ready) revert(notReadyReason);
+
         require(
             position.tokenFund == _extraData.swapPath[0] &&
                 position.tokenAsset == _extraData.swapPath[1],
             "Invalid swap path"
         );
-        require(position.amountFund >= position.amountDCA, "Insufficient fund");
 
         position.lastDCA = block.timestamp; // solhint-disable-line not-rely-on-time
         position.amountFund = position.amountFund - position.amountDCA;
 
-        require(
-            allowedPairs[position.tokenFund][position.tokenAsset],
-            "Token pair not allowed"
-        );
         IERC20(position.tokenFund).approve(
             address(uniRouter),
             position.amountDCA
@@ -168,6 +162,19 @@ contract DCACore is IDCACore, Ownable {
         position.amountAsset = position.amountAsset + amounts[1];
 
         emit ExecuteDCA(_positionId);
+    }
+
+    function executeDCAs(
+        uint256[] calldata _positionIds,
+        DCAExtraData[] calldata _extraDatas
+    ) public override {
+        require(
+            _positionIds.length == _extraDatas.length,
+            "Params lengths must be equal"
+        );
+        for (uint256 i = 0; i < _positionIds.length; i++) {
+            executeDCA(_positionIds[i], _extraDatas[i]);
+        }
     }
 
     function setAllowedTokenFund(address _token, bool _allowed)
@@ -212,6 +219,24 @@ contract DCACore is IDCACore, Ownable {
         emit PausedSet(_paused);
     }
 
+    function _checkReadyDCA(Position memory _position)
+        internal
+        view
+        returns (bool, string memory)
+    {
+        if ((_position.lastDCA + _position.interval) > block.timestamp) {
+            // solhint-disable-line not-rely-on-time
+            return (false, "Not time to DCA");
+        }
+        if (_position.amountFund < _position.amountDCA) {
+            return (false, "Insufficient fund");
+        }
+        if (!allowedPairs[_position.tokenFund][_position.tokenAsset]) {
+            return (false, "Token pair not allowed");
+        }
+        return (true, "");
+    }
+
     function _swap(
         uint256 _amountIn,
         uint256 _amountOutMin,
@@ -231,7 +256,7 @@ contract DCACore is IDCACore, Ownable {
         return positions.length;
     }
 
-    function getActivePositionIds()
+    function getReadyPositionIds()
         external
         view
         override
@@ -239,15 +264,15 @@ contract DCACore is IDCACore, Ownable {
     {
         uint256 activePositionsLength;
         for (uint256 i = 0; i < positions.length; i++) {
-            if (positions[i].amountFund > 0) {
-                activePositionsLength++;
-            }
+            (bool ready, ) = _checkReadyDCA(positions[i]);
+            if (ready) activePositionsLength++;
         }
 
         uint256 counter;
         uint256[] memory positionIds = new uint256[](activePositionsLength);
         for (uint256 i = 0; i < positions.length; i++) {
-            if (positions[i].amountFund > 0) {
+            (bool ready, ) = _checkReadyDCA(positions[i]);
+            if (ready) {
                 positionIds[counter] = positions[i].id;
                 counter++;
             }

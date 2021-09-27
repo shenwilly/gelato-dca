@@ -46,7 +46,12 @@ interface IDCACore {
     function executeDCA(uint256 _positionId, DCAExtraData calldata _extraData)
         external;
 
-    function getActivePositionIds() external view returns (uint256[] memory);
+    function executeDCAs(
+        uint256[] calldata _positionIds,
+        DCAExtraData[] calldata _extraDatas
+    ) external;
+
+    function getReadyPositionIds() external view returns (uint256[] memory);
 
     function getPositions(uint256[] calldata positionIds)
         external
