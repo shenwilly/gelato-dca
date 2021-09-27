@@ -19,6 +19,7 @@ const { expect } = chai;
 chai.use(solidity);
 chai.use(smock.matchers);
 
+// TODO: NotPaused test cases
 describe("DCACore", function () {
   let deployer: SignerWithAddress;
   let alice: SignerWithAddress;
@@ -37,6 +38,7 @@ describe("DCACore", function () {
   let defaultFund: BigNumber;
   let defaultDCA: BigNumber;
   let defaultInterval: BigNumberish;
+  let defaultSwapPath: string[];
 
   let snapshotId: string;
 
@@ -50,6 +52,7 @@ describe("DCACore", function () {
     defaultFund = parseUnits("10000", USDC_DECIMALS);
     defaultDCA = defaultFund.div(10);
     defaultInterval = 60; // second;
+    defaultSwapPath = [USDC_ADDRESS, WETH_ADDRESS];
 
     const DCACoreFactory = (await ethers.getContractFactory(
       "DCACore",
@@ -436,17 +439,109 @@ describe("DCACore", function () {
   });
 
   describe("executeDCA()", async () => {
+    let positionId: BigNumber;
+
+    beforeEach(async () => {
+      positionId = await getNextPositionId(dcaCore);
+      await usdc
+        .connect(alice)
+        .approve(dcaCore.address, ethers.constants.MaxUint256);
+
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+    });
+
     it("should revert if position does not exist", async () => {
-      // test
+      await expect(
+        dcaCore.connect(executor).executeDCA(positionId.add(1), {
+          swapAmountOutMin: 0,
+          swapPath: defaultSwapPath,
+        })
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index"
+      );
+    });
+    it("should revert if sender is not executor", async () => {
+      await expect(
+        dcaCore.connect(alice).executeDCA(positionId, {
+          swapAmountOutMin: 0,
+          swapPath: defaultSwapPath,
+        })
+      ).to.be.revertedWith("Only Executor");
     });
     it("should revert if position has run out of fund", async () => {
-      // test
+      await dcaCore.connect(alice).withdrawFund(positionId, defaultFund);
+
+      await expect(
+        dcaCore.connect(executor).executeDCA(positionId, {
+          swapAmountOutMin: 0,
+          swapPath: defaultSwapPath,
+        })
+      ).to.be.revertedWith("Insufficient fund");
+    });
+    it("should revert if swap path is invalid", async () => {
+      await expect(
+        dcaCore.connect(executor).executeDCA(positionId, {
+          swapAmountOutMin: 0,
+          swapPath: [usdc.address, usdc.address],
+        })
+      ).to.be.revertedWith("Invalid swap path");
     });
     it("should revert if token pair is not allowed", async () => {
-      // test
+      await dcaCore
+        .connect(deployer)
+        .setAllowedPair(usdc.address, weth.address, false);
+
+      await expect(
+        dcaCore.connect(executor).executeDCA(positionId, {
+          swapAmountOutMin: 0,
+          swapPath: defaultSwapPath,
+        })
+      ).to.be.revertedWith("Token pair not allowed");
     });
     it("should execute DCA", async () => {
-      // test
+      const positionPre = await dcaCore.positions(positionId);
+      const dcaAmount = positionPre[5];
+
+      const balanceFundBefore = await usdc.balanceOf(dcaCore.address);
+      const balanceAssetBefore = await weth.balanceOf(dcaCore.address);
+
+      const uniRouter = await ethers.getContractAt(
+        "IUniswapV2Router",
+        SUSHIWAP_ROUTER_MAINNET
+      );
+      const swapAmounts = await uniRouter.getAmountsOut(dcaAmount, [
+        usdc.address,
+        weth.address,
+      ]);
+
+      await expect(
+        dcaCore.connect(executor).executeDCA(positionId, {
+          swapAmountOutMin: swapAmounts[1],
+          swapPath: defaultSwapPath,
+        })
+      )
+        .to.emit(dcaCore, "ExecuteDCA")
+        .withArgs(positionId);
+
+      const balanceFundAfter = await usdc.balanceOf(dcaCore.address);
+      const balanceAssetAfter = await weth.balanceOf(dcaCore.address);
+
+      expect(balanceFundBefore.sub(balanceFundAfter)).to.be.eq(defaultDCA);
+
+      const wethDifference = balanceAssetAfter.sub(balanceAssetBefore);
+      expect(wethDifference).to.be.gte(swapAmounts[1]);
+
+      const positionPost = await dcaCore.positions(positionId);
+      expect(positionPost[4]).to.be.eq(defaultFund.sub(defaultDCA));
+      expect(positionPost[6]).to.be.eq(wethDifference);
     });
   });
 
