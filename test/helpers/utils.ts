@@ -2,6 +2,7 @@ import { BigNumber, BigNumberish } from "ethers/lib/ethers";
 import { ethers, network } from "hardhat";
 import { USDC_ADDRESS, USDC_MINTER } from "../../constants";
 import { DCACore } from "../../typechain";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 export const getNextPositionId = async (
   dcaCore: DCACore
@@ -29,4 +30,15 @@ export const getCurrentTimestamp = async (): Promise<BigNumber> => {
 export const fastForwardTo = async (timestamp: number) => {
   await ethers.provider.send("evm_setNextBlockTimestamp", [timestamp]);
   await ethers.provider.send("evm_mine", []);
+};
+
+export const impersonateAccount = async (
+  address: string
+): Promise<SignerWithAddress> => {
+  await network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [address],
+  });
+
+  return ethers.getSigner(address);
 };
