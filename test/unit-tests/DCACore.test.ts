@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { DCACore, DCACore__factory, IERC20 } from "../typechain";
+import { DCACore, DCACore__factory, IERC20 } from "../../typechain";
 
 import chai from "chai";
 import { solidity } from "ethereum-waffle";
@@ -9,14 +9,14 @@ import {
   USDC_ADDRESS,
   USDC_DECIMALS,
   WETH_ADDRESS,
-} from "../constants";
+} from "../../constants";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import {
   fastForwardTo,
   getCurrentTimestamp,
   getNextPositionId,
   mintUsdc,
-} from "./helpers/utils";
+} from "../helpers/utils";
 import { parseUnits } from "@ethersproject/units";
 
 const { expect } = chai;
