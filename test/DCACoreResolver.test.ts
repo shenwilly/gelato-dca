@@ -5,17 +5,13 @@ import {
   DCACoreResolver__factory,
   DCACore__factory,
   IERC20,
-  IPokeMe,
-  ITaskTreasury,
 } from "../typechain";
 
 import chai from "chai";
 import { solidity } from "ethereum-waffle";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
-  POKEME_MAINNET,
   SUSHIWAP_ROUTER_MAINNET,
-  TASK_TREASURY_MAINNET,
   USDC_ADDRESS,
   USDC_DECIMALS,
   WETH_ADDRESS,
@@ -36,13 +32,14 @@ chai.use(solidity);
 describe("DCACoreResolver", function () {
   let deployer: SignerWithAddress;
   let alice: SignerWithAddress;
+  let bob: SignerWithAddress;
   let deployerAddress: string;
   let aliceAddress: string;
+  let bobAddress: string;
 
   let dcaCore: DCACore;
   let resolver: DCACoreResolver;
-  let pokeMe: Contract;
-  let taskTreasury: Contract;
+  let uniRouter: Contract;
 
   let usdc: IERC20;
   let weth: IERC20;
@@ -51,13 +48,15 @@ describe("DCACoreResolver", function () {
   let defaultDCA: BigNumber;
   let defaultInterval: BigNumberish;
   let defaultSwapPath: string[];
+  let defaultSlippage: BigNumber;
 
   let snapshotId: string;
 
   before("setup contracts", async () => {
-    [deployer, alice] = await ethers.getSigners();
+    [deployer, alice, bob] = await ethers.getSigners();
     deployerAddress = deployer.address;
     aliceAddress = alice.address;
+    bobAddress = bob.address;
 
     defaultFund = parseUnits("10000", USDC_DECIMALS);
     defaultDCA = defaultFund.div(10);
@@ -70,7 +69,7 @@ describe("DCACoreResolver", function () {
     )) as DCACore__factory;
     dcaCore = await DCACoreFactory.deploy(
       SUSHIWAP_ROUTER_MAINNET,
-      POKEME_MAINNET
+      deployerAddress
     );
     await dcaCore.deployed();
 
@@ -83,10 +82,11 @@ describe("DCACoreResolver", function () {
       SUSHIWAP_ROUTER_MAINNET
     );
     await resolver.deployed();
+    defaultSlippage = await resolver.maxSlippage();
 
-    pokeMe = <IPokeMe>await ethers.getContractAt("IPokeMe", POKEME_MAINNET);
-    taskTreasury = <ITaskTreasury>(
-      await ethers.getContractAt("ITaskTreasury", TASK_TREASURY_MAINNET)
+    uniRouter = await ethers.getContractAt(
+      "IUniswapV2Router",
+      SUSHIWAP_ROUTER_MAINNET
     );
 
     usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
@@ -98,7 +98,15 @@ describe("DCACoreResolver", function () {
       .connect(deployer)
       .setAllowedPair(usdc.address, weth.address, true);
 
-    await mintUsdc(defaultFund, aliceAddress);
+    await mintUsdc(defaultFund.mul(10), aliceAddress);
+    await mintUsdc(defaultFund.mul(10), bobAddress);
+
+    await usdc
+      .connect(alice)
+      .approve(dcaCore.address, ethers.constants.MaxUint256);
+    await usdc
+      .connect(bob)
+      .approve(dcaCore.address, ethers.constants.MaxUint256);
 
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
@@ -124,70 +132,181 @@ describe("DCACoreResolver", function () {
       expect(await resolver.maxSlippage()).to.be.eq(newValue);
     });
   });
-  // describe("getExecutablePositions()", async () => {
-  //   it("should revert if token fund is not allowed", async () => {
-  //     expect(await dcaCore.allowedTokenFunds(weth.address)).to.be.eq(false);
-  //     await expect(
-  //       dcaCore
-  //         .connect(alice)
-  //         .createAndDepositFund(
-  //           weth.address,
-  //           weth.address,
-  //           defaultFund,
-  //           defaultDCA,
-  //           defaultInterval
-  //         )
-  //     ).to.be.revertedWith("_tokenFund not allowed");
-  //   });
-  //   it("should create position and deposit fund", async () => {
-  //     const positionId = await getNextPositionId(dcaCore);
-  //     await usdc.connect(alice).approve(dcaCore.address, defaultFund);
+  describe("getExecutablePositions()", async () => {
+    it("should return false if no executable positions", async () => {
+      const [canExec, payload] = await resolver.getExecutablePositions();
+      expect(canExec).to.be.eq(false);
 
-  //     const balanceAliceBefore = await usdc.balanceOf(aliceAddress);
-  //     const balanceContractBefore = await usdc.balanceOf(dcaCore.address);
+      const taskData = dcaCore.interface.encodeFunctionData("executeDCAs", [
+        [],
+        [],
+      ]);
+      expect(payload).to.be.eq(taskData);
+    });
+    it("should return true if there is an executable position", async () => {
+      const positionId = await getNextPositionId(dcaCore);
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
 
-  //     const tx = await dcaCore
-  //       .connect(alice)
-  //       .createAndDepositFund(
-  //         usdc.address,
-  //         weth.address,
-  //         defaultFund,
-  //         defaultDCA,
-  //         defaultInterval
-  //       );
+      const [canExec, payload] = await resolver.getExecutablePositions();
+      expect(canExec).to.be.eq(true);
 
-  //     expect(tx)
-  //       .to.emit(dcaCore, "PositionCreated")
-  //       .withArgs(
-  //         positionId,
-  //         aliceAddress,
-  //         usdc.address,
-  //         weth.address,
-  //         defaultDCA,
-  //         defaultInterval
-  //       );
-  //     expect(tx)
-  //       .to.emit(dcaCore, "DepositFund")
-  //       .withArgs(positionId, defaultFund);
+      const amounts = await uniRouter.getAmountsOut(
+        defaultDCA,
+        defaultSwapPath
+      );
+      let amountOutMin: BigNumber = amounts[1];
+      amountOutMin = amountOutMin.sub(
+        amountOutMin.mul(defaultSlippage).div(10000)
+      );
 
-  //     const balanceAliceAfter = await usdc.balanceOf(aliceAddress);
-  //     const balanceContractAfter = await usdc.balanceOf(dcaCore.address);
+      const taskData = dcaCore.interface.encodeFunctionData("executeDCAs", [
+        [positionId],
+        [{ swapAmountOutMin: amountOutMin, swapPath: defaultSwapPath }],
+      ]);
+      expect(payload).to.be.eq(taskData);
+    });
+    it("should return true if there are executable positions", async () => {
+      const positionId1 = await getNextPositionId(dcaCore);
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
 
-  //     expect(balanceAliceBefore.sub(balanceAliceAfter)).to.be.eq(defaultFund);
-  //     expect(balanceContractAfter.sub(balanceContractBefore)).to.be.eq(
-  //       defaultFund
-  //     );
+      const positionId2 = await getNextPositionId(dcaCore);
+      await dcaCore
+        .connect(bob)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA.mul(2),
+          defaultInterval
+        );
 
-  //     const position = await dcaCore.positions(positionId);
-  //     expect(position[0]).to.be.eq(positionId);
-  //     expect(position[1]).to.be.eq(aliceAddress);
-  //     expect(position[2]).to.be.eq(usdc.address);
-  //     expect(position[3]).to.be.eq(weth.address);
-  //     expect(position[4]).to.be.eq(defaultFund);
-  //     expect(position[5]).to.be.eq(defaultDCA);
-  //     expect(position[6]).to.be.eq(0);
-  //     expect(position[7]).to.be.eq(defaultInterval);
-  //     expect(position[8]).to.be.eq(0);
-  //   });
-  // });
+      const [canExec, payload] = await resolver.getExecutablePositions();
+      expect(canExec).to.be.eq(true);
+
+      const amounts1 = await uniRouter.getAmountsOut(
+        defaultDCA,
+        defaultSwapPath
+      );
+      let amountOutMin1: BigNumber = amounts1[1];
+      amountOutMin1 = amountOutMin1.sub(
+        amountOutMin1.mul(defaultSlippage).div(10000)
+      );
+      const amounts2 = await uniRouter.getAmountsOut(
+        defaultDCA.mul(2),
+        defaultSwapPath
+      );
+      let amountOutMin2: BigNumber = amounts2[1];
+      amountOutMin2 = amountOutMin2.sub(
+        amountOutMin2.mul(defaultSlippage).div(10000)
+      );
+
+      const taskData = dcaCore.interface.encodeFunctionData("executeDCAs", [
+        [positionId1, positionId2],
+        [
+          { swapAmountOutMin: amountOutMin1, swapPath: defaultSwapPath },
+          { swapAmountOutMin: amountOutMin2, swapPath: defaultSwapPath },
+        ],
+      ]);
+      expect(payload).to.be.eq(taskData);
+    });
+    it("should skip ineligible positions", async () => {
+      const positionId1 = await getNextPositionId(dcaCore);
+      await dcaCore
+        .connect(alice)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+
+      const positionId2 = await getNextPositionId(dcaCore);
+      await dcaCore
+        .connect(bob)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+
+      const positionId3 = await getNextPositionId(dcaCore);
+      await dcaCore
+        .connect(bob)
+        .createAndDepositFund(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+
+      // empty position1, trigger interval position2
+      await dcaCore.connect(alice).withdrawFund(positionId1, defaultFund);
+      await dcaCore.connect(deployer).executeDCA(positionId2, {
+        swapAmountOutMin: 0,
+        swapPath: defaultSwapPath,
+      });
+
+      const [canExec, payload] = await resolver.getExecutablePositions();
+      expect(canExec).to.be.eq(true);
+
+      const amounts = await uniRouter.getAmountsOut(
+        defaultDCA,
+        defaultSwapPath
+      );
+      let amountOutMin: BigNumber = amounts[1];
+      amountOutMin = amountOutMin.sub(
+        amountOutMin.mul(defaultSlippage).div(10000)
+      );
+
+      const taskData = dcaCore.interface.encodeFunctionData("executeDCAs", [
+        [positionId3],
+        [{ swapAmountOutMin: amountOutMin, swapPath: defaultSwapPath }],
+      ]);
+      expect(payload).to.be.eq(taskData);
+
+      const now = await getCurrentTimestamp();
+      await fastForwardTo(now.add(defaultInterval).toNumber());
+
+      const [canExec2, payload2] = await resolver.getExecutablePositions();
+      expect(canExec2).to.be.eq(true);
+
+      const amounts2 = await uniRouter.getAmountsOut(
+        defaultDCA,
+        defaultSwapPath
+      );
+      let amountOutMin2: BigNumber = amounts2[1];
+      amountOutMin2 = amountOutMin2.sub(
+        amountOutMin2.mul(defaultSlippage).div(10000)
+      );
+
+      const taskData2 = dcaCore.interface.encodeFunctionData("executeDCAs", [
+        [positionId2, positionId3],
+        [
+          { swapAmountOutMin: amountOutMin2, swapPath: defaultSwapPath },
+          { swapAmountOutMin: amountOutMin2, swapPath: defaultSwapPath },
+        ],
+      ]);
+      expect(payload2).to.be.eq(taskData2);
+    });
+  });
 });
