@@ -226,10 +226,11 @@ contract DCACore is IDCACore, Ownable {
         view
         returns (bool, string memory)
     {
+        /* solhint-disable-next-line not-rely-on-time */
         if ((_position.lastDCA + _position.interval) > block.timestamp) {
-            // solhint-disable-line not-rely-on-time
             return (false, "Not time to DCA");
         }
+
         if (_position.amountFund < _position.amountDCA) {
             return (false, "Insufficient fund");
         }
