@@ -33,7 +33,7 @@ contract DCACore is IDCACore, Ownable {
         paused = false;
     }
 
-    function createAndDeposit(
+    function createPositionAndDeposit(
         address _tokenIn,
         address _tokenOut,
         uint256 _amountIn,
@@ -69,6 +69,20 @@ contract DCACore is IDCACore, Ownable {
             _intervalDCA
         );
         emit Deposit(position.id, _amountIn);
+    }
+
+    function updatePosition(
+        uint256 _positionId,
+        uint256 _amountDCA,
+        uint256 _intervalDCA
+    ) external {
+        require(_amountDCA > 0 && _intervalDCA >= 60, "Invalid inputs");
+        Position storage position = positions[_positionId];
+        require(msg.sender == position.owner, "Sender must be owner");
+        position.amountDCA = _amountDCA;
+        position.intervalDCA = _intervalDCA;
+
+        emit PositionUpdated(_positionId, _amountDCA, _intervalDCA);
     }
 
     function deposit(uint256 _positionId, uint256 _amount)

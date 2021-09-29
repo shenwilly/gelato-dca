@@ -84,13 +84,13 @@ describe("DCACore", function () {
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
 
-  describe("createAndDeposit()", async () => {
+  describe("createPositionAndDeposit()", async () => {
     it("should revert if system is paused", async () => {
       await dcaCore.connect(deployer).setSystemPause(true);
       await expect(
         dcaCore
           .connect(alice)
-          .createAndDeposit(
+          .createPositionAndDeposit(
             usdc.address,
             usdc.address,
             defaultFund,
@@ -106,7 +106,7 @@ describe("DCACore", function () {
       await expect(
         dcaCore
           .connect(alice)
-          .createAndDeposit(
+          .createPositionAndDeposit(
             usdc.address,
             weth.address,
             defaultFund,
@@ -119,7 +119,7 @@ describe("DCACore", function () {
       await expect(
         dcaCore
           .connect(alice)
-          .createAndDeposit(
+          .createPositionAndDeposit(
             usdc.address,
             weth.address,
             0,
@@ -132,7 +132,7 @@ describe("DCACore", function () {
       await expect(
         dcaCore
           .connect(alice)
-          .createAndDeposit(
+          .createPositionAndDeposit(
             usdc.address,
             weth.address,
             defaultFund,
@@ -145,7 +145,7 @@ describe("DCACore", function () {
       await expect(
         dcaCore
           .connect(alice)
-          .createAndDeposit(
+          .createPositionAndDeposit(
             usdc.address,
             weth.address,
             defaultFund,
@@ -157,7 +157,7 @@ describe("DCACore", function () {
       await expect(
         dcaCore
           .connect(alice)
-          .createAndDeposit(
+          .createPositionAndDeposit(
             usdc.address,
             weth.address,
             defaultFund,
@@ -170,7 +170,7 @@ describe("DCACore", function () {
       await expect(
         dcaCore
           .connect(alice)
-          .createAndDeposit(
+          .createPositionAndDeposit(
             usdc.address,
             weth.address,
             100,
@@ -188,7 +188,7 @@ describe("DCACore", function () {
 
       const tx = await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -229,6 +229,63 @@ describe("DCACore", function () {
     });
   });
 
+  describe("updatePosition()", async () => {
+    let positionId: BigNumber;
+
+    beforeEach(async () => {
+      positionId = await getNextPositionId(dcaCore);
+      await usdc
+        .connect(alice)
+        .approve(dcaCore.address, ethers.constants.MaxUint256);
+
+      await dcaCore
+        .connect(alice)
+        .createPositionAndDeposit(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval
+        );
+    });
+
+    it("should revert if position does not exist", async () => {
+      await expect(
+        dcaCore.connect(alice).updatePosition(positionId.add(1), 100, 100)
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index"
+      );
+    });
+    it("should revert if sender is not position owner", async () => {
+      await expect(
+        dcaCore.connect(bob).updatePosition(positionId, 100, 100)
+      ).to.be.revertedWith("Sender must be owner");
+    });
+    it("should revert if DCA amount is 0", async () => {
+      await expect(
+        dcaCore.connect(alice).updatePosition(positionId, 0, defaultInterval)
+      ).to.be.revertedWith("Invalid inputs");
+    });
+    it("should revert if interval is less than one minute", async () => {
+      await expect(
+        dcaCore.connect(alice).updatePosition(positionId, defaultDCA, 0)
+      ).to.be.revertedWith("Invalid inputs");
+
+      await expect(
+        dcaCore.connect(alice).updatePosition(positionId, defaultDCA, 59)
+      ).to.be.revertedWith("Invalid inputs");
+    });
+    it("should update position", async () => {
+      await expect(dcaCore.connect(alice).updatePosition(positionId, 999, 120))
+        .to.emit(dcaCore, "PositionUpdated")
+        .withArgs(positionId, 999, 120);
+
+      const position = await dcaCore.positions(positionId);
+      expect(position[6]).to.be.eq(999);
+      expect(position[7]).to.be.eq(120);
+    });
+  });
+
   describe("deposit()", async () => {
     let positionId: BigNumber;
 
@@ -240,7 +297,7 @@ describe("DCACore", function () {
 
       await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -306,7 +363,7 @@ describe("DCACore", function () {
 
       await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -373,7 +430,7 @@ describe("DCACore", function () {
 
       await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -440,7 +497,7 @@ describe("DCACore", function () {
 
       await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -601,7 +658,7 @@ describe("DCACore", function () {
       positionIds.push(await getNextPositionId(dcaCore));
       await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -612,7 +669,7 @@ describe("DCACore", function () {
       positionIds.push(await getNextPositionId(dcaCore));
       await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -623,7 +680,7 @@ describe("DCACore", function () {
       positionIds.push(await getNextPositionId(dcaCore));
       await dcaCore
         .connect(bob)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -759,7 +816,7 @@ describe("DCACore", function () {
         .approve(dcaCore.address, ethers.constants.MaxUint256);
       await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -784,7 +841,7 @@ describe("DCACore", function () {
       const positionId1 = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -798,7 +855,7 @@ describe("DCACore", function () {
       const positionId2 = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -836,7 +893,7 @@ describe("DCACore", function () {
       const positionId1 = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -851,7 +908,7 @@ describe("DCACore", function () {
       const positionId2 = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(alice)
-        .createAndDeposit(
+        .createPositionAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,

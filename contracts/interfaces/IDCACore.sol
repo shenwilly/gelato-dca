@@ -29,6 +29,11 @@ interface IDCACore {
         uint256 amountDCA,
         uint256 intervalDCA
     );
+    event PositionUpdated(
+        uint256 indexed positionId,
+        uint256 indexed amountDCA,
+        uint256 indexed intervalDCA
+    );
     event Deposit(uint256 indexed positionId, uint256 indexed amount);
     event WithdrawTokenIn(uint256 indexed positionId, uint256 indexed amount);
     event WithdrawTokenOut(uint256 indexed positionId, uint256 indexed amount);
