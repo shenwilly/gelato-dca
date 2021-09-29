@@ -11,7 +11,7 @@ import chai from "chai";
 import { solidity } from "ethereum-waffle";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
-  SUSHIWAP_ROUTER_MAINNET,
+  SUSHISWAP_ROUTER_ADDRESS,
   USDC_ADDRESS,
   USDC_DECIMALS,
   WETH_ADDRESS,
@@ -51,6 +51,7 @@ describe("DCACoreResolver", function () {
   let defaultSlippage: BigNumber;
 
   let snapshotId: string;
+  const chainId = 1;
 
   before("setup contracts", async () => {
     [deployer, alice, bob] = await ethers.getSigners();
@@ -68,7 +69,7 @@ describe("DCACoreResolver", function () {
       deployer
     )) as DCACore__factory;
     dcaCore = await DCACoreFactory.deploy(
-      SUSHIWAP_ROUTER_MAINNET,
+      SUSHISWAP_ROUTER_ADDRESS[chainId],
       deployerAddress
     );
     await dcaCore.deployed();
@@ -79,14 +80,14 @@ describe("DCACoreResolver", function () {
     )) as DCACoreResolver__factory;
     resolver = await DCACoreResolverFactory.deploy(
       dcaCore.address,
-      SUSHIWAP_ROUTER_MAINNET
+      SUSHISWAP_ROUTER_ADDRESS[chainId]
     );
     await resolver.deployed();
     defaultSlippage = await resolver.maxSlippage();
 
     uniRouter = await ethers.getContractAt(
       "IUniswapV2Router",
-      SUSHIWAP_ROUTER_MAINNET
+      SUSHISWAP_ROUTER_ADDRESS[chainId]
     );
 
     usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);

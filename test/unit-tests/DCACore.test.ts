@@ -5,7 +5,7 @@ import chai from "chai";
 import { solidity } from "ethereum-waffle";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
-  SUSHIWAP_ROUTER_MAINNET,
+  SUSHISWAP_ROUTER_ADDRESS,
   USDC_ADDRESS,
   USDC_DECIMALS,
   WETH_ADDRESS,
@@ -43,6 +43,7 @@ describe("DCACore", function () {
   let defaultSwapPath: string[];
 
   let snapshotId: string;
+  const chainId = 1;
 
   before("setup contracts", async () => {
     [deployer, alice, bob, executor] = await ethers.getSigners();
@@ -61,7 +62,7 @@ describe("DCACore", function () {
       deployer
     )) as DCACore__factory;
     dcaCore = await DCACoreFactory.deploy(
-      SUSHIWAP_ROUTER_MAINNET,
+      SUSHISWAP_ROUTER_ADDRESS[chainId],
       executorAddress
     );
     await dcaCore.deployed();
@@ -568,7 +569,7 @@ describe("DCACore", function () {
 
       const uniRouter = await ethers.getContractAt(
         "IUniswapV2Router",
-        SUSHIWAP_ROUTER_MAINNET
+        SUSHISWAP_ROUTER_ADDRESS[chainId]
       );
       const swapAmounts1 = await uniRouter.getAmountsOut(dcaAmount, [
         usdc.address,
@@ -680,7 +681,7 @@ describe("DCACore", function () {
 
       const uniRouter = await ethers.getContractAt(
         "IUniswapV2Router",
-        SUSHIWAP_ROUTER_MAINNET
+        SUSHISWAP_ROUTER_ADDRESS[chainId]
       );
       const swapAmountsAlice = await uniRouter.getAmountsOut(
         dcaAmountAlice,

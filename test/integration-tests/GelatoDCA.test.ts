@@ -14,10 +14,10 @@ import { solidity } from "ethereum-waffle";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
   ETH_TOKEN_ADDRESS,
-  GELATO_MAINNET,
-  POKEME_MAINNET,
-  SUSHIWAP_ROUTER_MAINNET,
-  TASK_TREASURY_MAINNET,
+  GELATO_ADDRESS,
+  POKEME_ADDRESS,
+  SUSHISWAP_ROUTER_ADDRESS,
+  TASK_TREASURY_ADDRESS,
   USDC_ADDRESS,
   USDC_DECIMALS,
   WETH_ADDRESS,
@@ -62,6 +62,7 @@ describe("Integration Test: Gelato DCA", function () {
   let resolverHash: string;
 
   let snapshotId: string;
+  const chainId = 1;
 
   before("setup contracts", async () => {
     [deployer, alice, bob] = await ethers.getSigners();
@@ -79,8 +80,8 @@ describe("Integration Test: Gelato DCA", function () {
       deployer
     )) as DCACore__factory;
     dcaCore = await DCACoreFactory.deploy(
-      SUSHIWAP_ROUTER_MAINNET,
-      POKEME_MAINNET
+      SUSHISWAP_ROUTER_ADDRESS[chainId],
+      POKEME_ADDRESS[chainId]
     );
     await dcaCore.deployed();
 
@@ -90,13 +91,18 @@ describe("Integration Test: Gelato DCA", function () {
     )) as DCACoreResolver__factory;
     resolver = await DCACoreResolverFactory.deploy(
       dcaCore.address,
-      SUSHIWAP_ROUTER_MAINNET
+      SUSHISWAP_ROUTER_ADDRESS[chainId]
     );
     await resolver.deployed();
 
-    pokeMe = <IPokeMe>await ethers.getContractAt("IPokeMe", POKEME_MAINNET);
+    pokeMe = <IPokeMe>(
+      await ethers.getContractAt("IPokeMe", POKEME_ADDRESS[chainId])
+    );
     taskTreasury = <ITaskTreasury>(
-      await ethers.getContractAt("ITaskTreasury", TASK_TREASURY_MAINNET)
+      await ethers.getContractAt(
+        "ITaskTreasury",
+        TASK_TREASURY_ADDRESS[chainId]
+      )
     );
     await taskTreasury
       .connect(deployer)
@@ -123,7 +129,7 @@ describe("Integration Test: Gelato DCA", function () {
       .connect(bob)
       .approve(dcaCore.address, ethers.constants.MaxUint256);
 
-    executor = await impersonateAccount(GELATO_MAINNET);
+    executor = await impersonateAccount(GELATO_ADDRESS[chainId]);
 
     executeDCAsSelector = dcaCore.interface.getSighash("executeDCAs");
     resolverData = resolver.interface.encodeFunctionData(
