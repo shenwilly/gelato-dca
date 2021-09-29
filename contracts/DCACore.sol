@@ -115,8 +115,8 @@ contract DCACore is IDCACore, Ownable {
         require(_amount > 0, "_amount must be > 0");
         Position storage position = positions[_positionId];
         require(msg.sender == position.owner, "Sender must be owner");
-        position.balanceIn = position.balanceIn - _amount;
 
+        position.balanceIn = position.balanceIn - _amount;
         IERC20(position.tokenIn).safeTransfer(position.owner, _amount);
 
         emit WithdrawTokenIn(_positionId, _amount);
@@ -129,10 +129,36 @@ contract DCACore is IDCACore, Ownable {
 
         uint256 withdrawable = position.balanceOut;
         position.balanceOut = 0;
-
         IERC20(position.tokenOut).safeTransfer(position.owner, withdrawable);
 
         emit WithdrawTokenOut(_positionId, withdrawable);
+    }
+
+    function exit(uint256 _positionId) public {
+        Position storage position = positions[_positionId];
+        require(msg.sender == position.owner, "Sender must be owner");
+
+        if (position.balanceIn > 0) {
+            uint256 withdrawableTokenIn = position.balanceIn;
+            position.balanceIn = 0;
+
+            IERC20(position.tokenIn).safeTransfer(
+                position.owner,
+                withdrawableTokenIn
+            );
+            emit WithdrawTokenIn(_positionId, withdrawableTokenIn);
+        }
+
+        if (position.balanceOut > 0) {
+            uint256 withdrawableTokenOut = position.balanceOut;
+            position.balanceOut = 0;
+
+            IERC20(position.tokenOut).safeTransfer(
+                position.owner,
+                withdrawableTokenOut
+            );
+            emit WithdrawTokenOut(_positionId, withdrawableTokenOut);
+        }
     }
 
     function executeDCA(uint256 _positionId, DCAExtraData calldata _extraData)

@@ -502,6 +502,88 @@ describe("DCACore", function () {
     });
   });
 
+  describe("exit()", async () => {
+    let positionId: BigNumber;
+
+    beforeEach(async () => {
+      positionId = await getNextPositionId(dcaCore);
+      await usdc
+        .connect(alice)
+        .approve(dcaCore.address, ethers.constants.MaxUint256);
+
+      await dcaCore
+        .connect(alice)
+        .createPositionAndDeposit(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval,
+          defaultSlippage
+        );
+    });
+
+    it("should revert if position does not exist", async () => {
+      await expect(
+        dcaCore.connect(alice).exit(positionId.add(1))
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index"
+      );
+    });
+    it("should revert if sender is not owner", async () => {
+      await expect(dcaCore.connect(bob).exit(positionId)).to.be.revertedWith(
+        "Sender must be owner"
+      );
+    });
+    it("should withdraw all tokenIn and tokenOut", async () => {
+      await dcaCore.connect(executor).executeDCA(positionId, {
+        swapAmountOutMin: 0,
+        swapPath: [usdc.address, weth.address],
+      });
+
+      const positionPre = await dcaCore.positions(positionId);
+      const withdrawableEth = positionPre[5];
+      expect(withdrawableEth).to.be.gt(0);
+
+      const balanceUsdcAliceBefore = await usdc.balanceOf(aliceAddress);
+      const balanceWethAliceBefore = await weth.balanceOf(aliceAddress);
+      const balanceUsdcContractBefore = await usdc.balanceOf(dcaCore.address);
+      const balanceWethContractBefore = await weth.balanceOf(dcaCore.address);
+
+      const withdrawableUsdc = defaultFund.sub(defaultDCA);
+
+      const tx = await dcaCore.connect(alice).exit(positionId);
+      expect(tx)
+        .to.emit(dcaCore, "WithdrawTokenIn")
+        .withArgs(positionId, withdrawableUsdc);
+      expect(tx)
+        .to.emit(dcaCore, "WithdrawTokenOut")
+        .withArgs(positionId, withdrawableEth);
+
+      const balanceUsdcAliceAfter = await usdc.balanceOf(aliceAddress);
+      const balanceWethAliceAfter = await weth.balanceOf(aliceAddress);
+      const balanceUsdcContractAfter = await usdc.balanceOf(dcaCore.address);
+      const balanceWethContractAfter = await weth.balanceOf(dcaCore.address);
+
+      expect(balanceUsdcAliceAfter.sub(balanceUsdcAliceBefore)).to.be.eq(
+        withdrawableUsdc
+      );
+      expect(balanceWethAliceAfter.sub(balanceWethAliceBefore)).to.be.eq(
+        withdrawableEth
+      );
+      expect(balanceUsdcContractBefore.sub(balanceUsdcContractAfter)).to.be.eq(
+        withdrawableUsdc
+      );
+      expect(balanceWethContractBefore.sub(balanceWethContractAfter)).to.be.eq(
+        withdrawableEth
+      );
+
+      const positionPost = await dcaCore.positions(positionId);
+      expect(positionPost[4]).to.be.eq(0);
+      expect(positionPost[5]).to.be.eq(0);
+    });
+  });
+
   describe("executeDCA()", async () => {
     let positionId: BigNumber;
 
