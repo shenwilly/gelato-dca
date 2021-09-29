@@ -54,6 +54,7 @@ describe("Integration Test: Gelato DCA", function () {
 
   let defaultFund: BigNumber;
   let defaultDCA: BigNumber;
+  let defaultSlippage: BigNumber;
   let defaultInterval: BigNumberish;
   let defaultGelatoFee: BigNumber;
 
@@ -84,6 +85,7 @@ describe("Integration Test: Gelato DCA", function () {
       POKEME_ADDRESS[chainId]
     );
     await dcaCore.deployed();
+    defaultSlippage = await dcaCore.minSlippage();
 
     const DCACoreResolverFactory = (await ethers.getContractFactory(
       "DCACoreResolver",
@@ -162,7 +164,8 @@ describe("Integration Test: Gelato DCA", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       const balanceBeforeUsdc = await usdc.balanceOf(dcaCore.address);
@@ -210,7 +213,8 @@ describe("Integration Test: Gelato DCA", function () {
           weth.address,
           defaultDCA,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       const [canExec, payload] = await resolver.getExecutablePositions();
@@ -268,7 +272,8 @@ describe("Integration Test: Gelato DCA", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          200
+          200,
+          defaultSlippage
         );
 
       const positionId2 = await getNextPositionId(dcaCore);
@@ -279,7 +284,8 @@ describe("Integration Test: Gelato DCA", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          400
+          400,
+          defaultSlippage
         );
 
       const [canExec1, payload1] = await resolver.getExecutablePositions();

@@ -39,6 +39,7 @@ describe("DCACore", function () {
 
   let defaultFund: BigNumber;
   let defaultDCA: BigNumber;
+  let defaultSlippage: BigNumber;
   let defaultInterval: BigNumberish;
   let defaultSwapPath: string[];
 
@@ -66,6 +67,7 @@ describe("DCACore", function () {
       executorAddress
     );
     await dcaCore.deployed();
+    defaultSlippage = await dcaCore.minSlippage();
 
     usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
     weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS);
@@ -95,7 +97,8 @@ describe("DCACore", function () {
             usdc.address,
             defaultFund,
             defaultDCA,
-            defaultInterval
+            defaultInterval,
+            defaultSlippage
           )
       ).to.be.revertedWith("System is paused");
     });
@@ -111,7 +114,8 @@ describe("DCACore", function () {
             weth.address,
             defaultFund,
             defaultDCA,
-            defaultInterval
+            defaultInterval,
+            defaultSlippage
           )
       ).to.be.revertedWith("Pair not allowed");
     });
@@ -124,7 +128,8 @@ describe("DCACore", function () {
             weth.address,
             0,
             defaultDCA,
-            defaultInterval
+            defaultInterval,
+            defaultSlippage
           )
       ).to.be.revertedWith("Invalid inputs");
     });
@@ -137,7 +142,8 @@ describe("DCACore", function () {
             weth.address,
             defaultFund,
             0,
-            defaultInterval
+            defaultInterval,
+            defaultSlippage
           )
       ).to.be.revertedWith("Invalid inputs");
     });
@@ -150,7 +156,8 @@ describe("DCACore", function () {
             weth.address,
             defaultFund,
             defaultDCA,
-            0
+            0,
+            defaultSlippage
           )
       ).to.be.revertedWith("Invalid inputs");
 
@@ -162,7 +169,8 @@ describe("DCACore", function () {
             weth.address,
             defaultFund,
             defaultDCA,
-            59
+            59,
+            defaultSlippage
           )
       ).to.be.revertedWith("Invalid inputs");
     });
@@ -175,7 +183,8 @@ describe("DCACore", function () {
             weth.address,
             100,
             110,
-            defaultInterval
+            defaultInterval,
+            defaultSlippage
           )
       ).to.be.revertedWith("Deposit for at least 1 DCA");
     });
@@ -193,7 +202,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       expect(tx)
@@ -204,7 +214,8 @@ describe("DCACore", function () {
           usdc.address,
           weth.address,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
       expect(tx).to.emit(dcaCore, "Deposit").withArgs(positionId, defaultFund);
 
@@ -226,6 +237,7 @@ describe("DCACore", function () {
       expect(position[6]).to.be.eq(defaultDCA);
       expect(position[7]).to.be.eq(defaultInterval);
       expect(position[8]).to.be.eq(0);
+      expect(position[9]).to.be.eq(defaultSlippage);
     });
   });
 
@@ -245,7 +257,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
     });
 
@@ -302,7 +315,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
     });
 
@@ -368,7 +382,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
     });
 
@@ -435,7 +450,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
     });
 
@@ -502,7 +518,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
     });
 
@@ -663,7 +680,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       positionIds.push(await getNextPositionId(dcaCore));
@@ -674,7 +692,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       positionIds.push(await getNextPositionId(dcaCore));
@@ -685,7 +704,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA.mul(2),
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
     });
 
@@ -780,6 +800,33 @@ describe("DCACore", function () {
     });
   });
 
+  describe("setMinSlippage()", async () => {
+    it("should revert if sender is not owner", async () => {
+      await expect(dcaCore.connect(alice).setMinSlippage(0)).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
+    });
+    it("should revert if new value is same to old value", async () => {
+      await expect(
+        dcaCore.connect(deployer).setMinSlippage(defaultSlippage)
+      ).to.be.revertedWith("Same slippage value");
+    });
+    it("should revert if slippage is too large", async () => {
+      await expect(
+        dcaCore.connect(deployer).setMinSlippage(1000000)
+      ).to.be.revertedWith("Min slippage too large");
+    });
+    it("should set new value", async () => {
+      expect(await dcaCore.minSlippage()).to.be.eq(defaultSlippage);
+      await expect(
+        dcaCore.connect(deployer).setMinSlippage(defaultSlippage.add(1))
+      )
+        .to.emit(dcaCore, "MinSlippageSet")
+        .withArgs(defaultSlippage.add(1));
+      expect(await dcaCore.minSlippage()).to.be.eq(defaultSlippage.add(1));
+    });
+  });
+
   describe("setSystemPause()", async () => {
     it("should revert if sender is not owner", async () => {
       await expect(
@@ -821,7 +868,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       expect(await dcaCore.getNextPositionId()).to.be.eq(1);
@@ -846,7 +894,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
       const activePositions1 = await dcaCore.getReadyPositionIds();
       expect(activePositions1.length).to.be.eq(1);
@@ -860,7 +909,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
       const activePositions2 = await dcaCore.getReadyPositionIds();
       expect(activePositions2.length).to.be.eq(2);
@@ -898,7 +948,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       const positions1 = await dcaCore.getPositions([positionId1]);
@@ -913,7 +964,8 @@ describe("DCACore", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       const positions2 = await dcaCore.getPositions([positionId1, positionId2]);

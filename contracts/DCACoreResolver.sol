@@ -8,18 +8,12 @@ contract DCACoreResolver {
     IDCACore public dcaCore;
     IUniswapV2Router public uniRouter;
 
-    uint256 public maxSlippage = 50; // 0.5%
     address public owner;
 
     constructor(address _dcaCore, address _uniRouter) {
         dcaCore = IDCACore(_dcaCore);
         uniRouter = IUniswapV2Router(_uniRouter);
         owner = msg.sender;
-    }
-
-    function setMaxSlippage(uint256 _maxSlippage) public {
-        require(msg.sender == owner && _maxSlippage <= 500); // sanity check max slippage under 5%
-        maxSlippage = _maxSlippage;
     }
 
     function getExecutablePositions()
@@ -48,10 +42,8 @@ contract DCACoreResolver {
                 positions[i].amountDCA,
                 path
             );
-            uint256 amountOutMin = amounts[1] -
-                ((amounts[1] * maxSlippage) / 10_000);
 
-            extraDatas[i].swapAmountOutMin = amountOutMin;
+            extraDatas[i].swapAmountOutMin = amounts[1];
             extraDatas[i].swapPath = path;
         }
 

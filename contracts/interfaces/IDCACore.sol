@@ -12,6 +12,7 @@ interface IDCACore {
         uint256 amountDCA;
         uint256 intervalDCA;
         uint256 lastDCA; //timestamp
+        uint256 maxSlippage;
     }
 
     struct DCAExtraData {
@@ -27,7 +28,8 @@ interface IDCACore {
         address tokenIn,
         address tokenOut,
         uint256 amountDCA,
-        uint256 intervalDCA
+        uint256 intervalDCA,
+        uint256 maxSlippage
     );
     event PositionUpdated(
         uint256 indexed positionId,
@@ -43,6 +45,7 @@ interface IDCACore {
         address indexed tokenOut,
         bool indexed allowed
     );
+    event MinSlippageSet(uint256 indexed minSlippage);
     event PausedSet(bool indexed paused);
 
     function executeDCA(uint256 _positionId, DCAExtraData calldata _extraData)

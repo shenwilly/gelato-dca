@@ -73,6 +73,7 @@ describe("DCACoreResolver", function () {
       deployerAddress
     );
     await dcaCore.deployed();
+    defaultSlippage = await dcaCore.minSlippage();
 
     const DCACoreResolverFactory = (await ethers.getContractFactory(
       "DCACoreResolver",
@@ -83,7 +84,6 @@ describe("DCACoreResolver", function () {
       SUSHISWAP_ROUTER_ADDRESS[chainId]
     );
     await resolver.deployed();
-    defaultSlippage = await resolver.maxSlippage();
 
     uniRouter = await ethers.getContractAt(
       "IUniswapV2Router",
@@ -115,22 +115,6 @@ describe("DCACoreResolver", function () {
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
 
-  describe("setMaxSlippage()", async () => {
-    it("should revert if sender is not owner", async () => {
-      await expect(resolver.connect(alice).setMaxSlippage(1)).to.be.reverted;
-    });
-    it("should revert if max slippage is higher than 5%", async () => {
-      await expect(resolver.connect(deployer).setMaxSlippage(501)).to.be
-        .reverted;
-    });
-    it("should set new maxSlippage", async () => {
-      const oldValue = await resolver.maxSlippage();
-      const newValue = oldValue.add(1);
-
-      await resolver.connect(deployer).setMaxSlippage(newValue);
-      expect(await resolver.maxSlippage()).to.be.eq(newValue);
-    });
-  });
   describe("getExecutablePositions()", async () => {
     it("should return false if no executable positions", async () => {
       const [canExec, payload] = await resolver.getExecutablePositions();
@@ -151,7 +135,8 @@ describe("DCACoreResolver", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       const [canExec, payload] = await resolver.getExecutablePositions();
@@ -161,11 +146,7 @@ describe("DCACoreResolver", function () {
         defaultDCA,
         defaultSwapPath
       );
-      let amountOutMin: BigNumber = amounts[1];
-      amountOutMin = amountOutMin.sub(
-        amountOutMin.mul(defaultSlippage).div(10000)
-      );
-
+      const amountOutMin: BigNumber = amounts[1];
       const taskData = dcaCore.interface.encodeFunctionData("executeDCAs", [
         [positionId],
         [{ swapAmountOutMin: amountOutMin, swapPath: defaultSwapPath }],
@@ -181,7 +162,8 @@ describe("DCACoreResolver", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       const positionId2 = await getNextPositionId(dcaCore);
@@ -192,7 +174,8 @@ describe("DCACoreResolver", function () {
           weth.address,
           defaultFund,
           defaultDCA.mul(2),
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       const [canExec, payload] = await resolver.getExecutablePositions();
@@ -202,19 +185,12 @@ describe("DCACoreResolver", function () {
         defaultDCA,
         defaultSwapPath
       );
-      let amountOutMin1: BigNumber = amounts1[1];
-      amountOutMin1 = amountOutMin1.sub(
-        amountOutMin1.mul(defaultSlippage).div(10000)
-      );
+      const amountOutMin1: BigNumber = amounts1[1];
       const amounts2 = await uniRouter.getAmountsOut(
         defaultDCA.mul(2),
         defaultSwapPath
       );
-      let amountOutMin2: BigNumber = amounts2[1];
-      amountOutMin2 = amountOutMin2.sub(
-        amountOutMin2.mul(defaultSlippage).div(10000)
-      );
-
+      const amountOutMin2: BigNumber = amounts2[1];
       const taskData = dcaCore.interface.encodeFunctionData("executeDCAs", [
         [positionId1, positionId2],
         [
@@ -233,7 +209,8 @@ describe("DCACoreResolver", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       const positionId2 = await getNextPositionId(dcaCore);
@@ -244,7 +221,8 @@ describe("DCACoreResolver", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       const positionId3 = await getNextPositionId(dcaCore);
@@ -255,7 +233,8 @@ describe("DCACoreResolver", function () {
           weth.address,
           defaultFund,
           defaultDCA,
-          defaultInterval
+          defaultInterval,
+          defaultSlippage
         );
 
       // empty position1, trigger interval position2
@@ -272,10 +251,7 @@ describe("DCACoreResolver", function () {
         defaultDCA,
         defaultSwapPath
       );
-      let amountOutMin: BigNumber = amounts[1];
-      amountOutMin = amountOutMin.sub(
-        amountOutMin.mul(defaultSlippage).div(10000)
-      );
+      const amountOutMin: BigNumber = amounts[1];
 
       const taskData = dcaCore.interface.encodeFunctionData("executeDCAs", [
         [positionId3],
@@ -293,10 +269,7 @@ describe("DCACoreResolver", function () {
         defaultDCA,
         defaultSwapPath
       );
-      let amountOutMin2: BigNumber = amounts2[1];
-      amountOutMin2 = amountOutMin2.sub(
-        amountOutMin2.mul(defaultSlippage).div(10000)
-      );
+      const amountOutMin2: BigNumber = amounts2[1];
 
       const taskData2 = dcaCore.interface.encodeFunctionData("executeDCAs", [
         [positionId2, positionId3],

@@ -13,9 +13,10 @@ contract DCACore is IDCACore, Ownable {
     Position[] public positions;
     IUniswapV2Router public uniRouter;
     address public executor;
-    bool public paused;
 
+    bool public paused;
     mapping(address => mapping(address => bool)) public allowedTokenPairs;
+    uint256 public minSlippage = 25; // 0.25%
 
     modifier onlyExecutor() {
         require(msg.sender == executor, "Only Executor");
@@ -38,11 +39,15 @@ contract DCACore is IDCACore, Ownable {
         address _tokenOut,
         uint256 _amountIn,
         uint256 _amountDCA,
-        uint256 _intervalDCA
+        uint256 _intervalDCA,
+        uint256 _maxSlippage
     ) external payable notPaused {
         require(allowedTokenPairs[_tokenIn][_tokenOut], "Pair not allowed");
         require(
-            _amountIn > 0 && _amountDCA > 0 && _intervalDCA >= 60,
+            _amountIn > 0 &&
+                _amountDCA > 0 &&
+                _intervalDCA >= 60 &&
+                _maxSlippage >= minSlippage,
             "Invalid inputs"
         );
         require(_amountIn >= _amountDCA, "Deposit for at least 1 DCA");
@@ -57,6 +62,7 @@ contract DCACore is IDCACore, Ownable {
         position.balanceIn = _amountIn;
         position.amountDCA = _amountDCA;
         position.intervalDCA = _intervalDCA;
+        position.maxSlippage = _maxSlippage;
 
         positions.push(position);
 
@@ -66,7 +72,8 @@ contract DCACore is IDCACore, Ownable {
             _tokenIn,
             _tokenOut,
             _amountDCA,
-            _intervalDCA
+            _intervalDCA,
+            _maxSlippage
         );
         emit Deposit(position.id, _amountIn);
     }
@@ -153,9 +160,12 @@ contract DCACore is IDCACore, Ownable {
             address(uniRouter),
             position.amountDCA
         );
+
+        uint256 amountOutMin = _extraData.swapAmountOutMin -
+            ((_extraData.swapAmountOutMin * position.maxSlippage) / 10_000);
         uint256[] memory amounts = _swap(
             position.amountDCA,
-            _extraData.swapAmountOutMin,
+            amountOutMin,
             _extraData.swapPath
         );
         position.balanceOut = position.balanceOut + amounts[amounts.length - 1];
@@ -191,6 +201,14 @@ contract DCACore is IDCACore, Ownable {
         allowedTokenPairs[_tokenIn][_tokenOut] = _allowed;
 
         emit AllowedTokenPairSet(_tokenIn, _tokenOut, _allowed);
+    }
+
+    function setMinSlippage(uint256 _minSlippage) external onlyOwner {
+        require(minSlippage != _minSlippage, "Same slippage value");
+        require(_minSlippage <= 1000, "Min slippage too large"); // sanity check max slippage under 10%
+        minSlippage = _minSlippage;
+
+        emit MinSlippageSet(_minSlippage);
     }
 
     function setSystemPause(bool _paused) external onlyOwner {
