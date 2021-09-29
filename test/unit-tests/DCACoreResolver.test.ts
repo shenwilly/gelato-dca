@@ -146,7 +146,7 @@ describe("DCACoreResolver", function () {
       const positionId = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(alice)
-        .createAndDepositFund(
+        .createAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -176,7 +176,7 @@ describe("DCACoreResolver", function () {
       const positionId1 = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(alice)
-        .createAndDepositFund(
+        .createAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -187,7 +187,7 @@ describe("DCACoreResolver", function () {
       const positionId2 = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(bob)
-        .createAndDepositFund(
+        .createAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -228,7 +228,7 @@ describe("DCACoreResolver", function () {
       const positionId1 = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(alice)
-        .createAndDepositFund(
+        .createAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -239,7 +239,7 @@ describe("DCACoreResolver", function () {
       const positionId2 = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(bob)
-        .createAndDepositFund(
+        .createAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -250,7 +250,7 @@ describe("DCACoreResolver", function () {
       const positionId3 = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(bob)
-        .createAndDepositFund(
+        .createAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -259,7 +259,7 @@ describe("DCACoreResolver", function () {
         );
 
       // empty position1, trigger interval position2
-      await dcaCore.connect(alice).withdrawFund(positionId1, defaultFund);
+      await dcaCore.connect(alice).withdrawTokenIn(positionId1, defaultFund);
       await dcaCore.connect(deployer).executeDCA(positionId2, {
         swapAmountOutMin: 0,
         swapPath: defaultSwapPath,

@@ -157,7 +157,7 @@ describe("Integration Test: Gelato DCA", function () {
       const positionId = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(alice)
-        .createAndDepositFund(
+        .createAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -205,7 +205,7 @@ describe("Integration Test: Gelato DCA", function () {
       const positionId = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(alice)
-        .createAndDepositFund(
+        .createAndDeposit(
           usdc.address,
           weth.address,
           defaultDCA,
@@ -237,7 +237,7 @@ describe("Integration Test: Gelato DCA", function () {
       const [canExec2] = await resolver.getExecutablePositions();
       expect(canExec2).to.be.eq(false);
 
-      await dcaCore.connect(alice).depositFund(positionId, defaultDCA);
+      await dcaCore.connect(alice).deposit(positionId, defaultDCA);
 
       const [canExec3, payload3] = await resolver.getExecutablePositions();
       expect(canExec3).to.be.eq(true);
@@ -263,7 +263,7 @@ describe("Integration Test: Gelato DCA", function () {
       const positionId1 = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(alice)
-        .createAndDepositFund(
+        .createAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,
@@ -274,7 +274,7 @@ describe("Integration Test: Gelato DCA", function () {
       const positionId2 = await getNextPositionId(dcaCore);
       await dcaCore
         .connect(bob)
-        .createAndDepositFund(
+        .createAndDeposit(
           usdc.address,
           weth.address,
           defaultFund,

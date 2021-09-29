@@ -33,7 +33,7 @@ contract DCACore is IDCACore, Ownable {
         paused = false;
     }
 
-    function createAndDepositFund(
+    function createAndDeposit(
         address _tokenIn,
         address _tokenOut,
         uint256 _amountIn,
@@ -68,10 +68,10 @@ contract DCACore is IDCACore, Ownable {
             _amountDCA,
             _intervalDCA
         );
-        emit DepositFund(position.id, _amountIn);
+        emit Deposit(position.id, _amountIn);
     }
 
-    function depositFund(uint256 _positionId, uint256 _amount)
+    function deposit(uint256 _positionId, uint256 _amount)
         external
         payable
         notPaused
@@ -87,10 +87,10 @@ contract DCACore is IDCACore, Ownable {
             _amount
         );
 
-        emit DepositFund(_positionId, _amount);
+        emit Deposit(_positionId, _amount);
     }
 
-    function withdrawFund(uint256 _positionId, uint256 _amount) external {
+    function withdrawTokenIn(uint256 _positionId, uint256 _amount) public {
         require(_amount > 0, "_amount must be > 0");
         Position storage position = positions[_positionId];
         require(msg.sender == position.owner, "Sender must be owner");
@@ -98,10 +98,10 @@ contract DCACore is IDCACore, Ownable {
 
         IERC20(position.tokenIn).safeTransfer(position.owner, _amount);
 
-        emit WithdrawFund(_positionId, _amount);
+        emit WithdrawTokenIn(_positionId, _amount);
     }
 
-    function withdraw(uint256 _positionId) external {
+    function withdrawTokenOut(uint256 _positionId) public {
         Position storage position = positions[_positionId];
         require(msg.sender == position.owner, "Sender must be owner");
         require(position.balanceOut > 0, "DCA asset amount must be > 0");
@@ -111,7 +111,7 @@ contract DCACore is IDCACore, Ownable {
 
         IERC20(position.tokenOut).safeTransfer(position.owner, withdrawable);
 
-        emit Withdraw(_positionId, withdrawable);
+        emit WithdrawTokenOut(_positionId, withdrawable);
     }
 
     function executeDCA(uint256 _positionId, DCAExtraData calldata _extraData)
