@@ -70,11 +70,9 @@ describe("DCACore", function () {
     usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
     weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS);
 
-    await dcaCore.connect(deployer).setAllowedTokenFund(usdc.address, true);
-    await dcaCore.connect(deployer).setAllowedTokenAsset(weth.address, true);
     await dcaCore
       .connect(deployer)
-      .setAllowedPair(usdc.address, weth.address, true);
+      .setAllowedTokenPair(usdc.address, weth.address, true);
 
     await mintUsdc(defaultFund, aliceAddress);
 
@@ -87,20 +85,6 @@ describe("DCACore", function () {
   });
 
   describe("createAndDepositFund()", async () => {
-    it("should revert if token fund is not allowed", async () => {
-      expect(await dcaCore.allowedTokenFunds(weth.address)).to.be.eq(false);
-      await expect(
-        dcaCore
-          .connect(alice)
-          .createAndDepositFund(
-            weth.address,
-            weth.address,
-            defaultFund,
-            defaultDCA,
-            defaultInterval
-          )
-      ).to.be.revertedWith("_tokenFund not allowed");
-    });
     it("should revert if system is paused", async () => {
       await dcaCore.connect(deployer).setSystemPause(true);
       await expect(
@@ -115,24 +99,10 @@ describe("DCACore", function () {
           )
       ).to.be.revertedWith("System is paused");
     });
-    it("should revert if token asset is not allowed", async () => {
-      expect(await dcaCore.allowedTokenAssets(usdc.address)).to.be.eq(false);
-      await expect(
-        dcaCore
-          .connect(alice)
-          .createAndDepositFund(
-            usdc.address,
-            usdc.address,
-            defaultFund,
-            defaultDCA,
-            defaultInterval
-          )
-      ).to.be.revertedWith("_tokenAsset not allowed");
-    });
     it("should revert if token pair is not allowed", async () => {
       await dcaCore
         .connect(deployer)
-        .setAllowedPair(usdc.address, weth.address, false);
+        .setAllowedTokenPair(usdc.address, weth.address, false);
       await expect(
         dcaCore
           .connect(alice)
@@ -196,7 +166,7 @@ describe("DCACore", function () {
           )
       ).to.be.revertedWith("Invalid inputs");
     });
-    it("should revert if fund amount modulo DCA amount not equal 0", async () => {
+    it("should revert if amountIn is less than one time amountDCA", async () => {
       await expect(
         dcaCore
           .connect(alice)
@@ -204,10 +174,10 @@ describe("DCACore", function () {
             usdc.address,
             weth.address,
             100,
-            3,
+            110,
             defaultInterval
           )
-      ).to.be.revertedWith("Improper DCA amount");
+      ).to.be.revertedWith("Deposit for at least 1 DCA");
     });
     it("should create position and deposit fund", async () => {
       const positionId = await getNextPositionId(dcaCore);
@@ -254,8 +224,8 @@ describe("DCACore", function () {
       expect(position[2]).to.be.eq(usdc.address);
       expect(position[3]).to.be.eq(weth.address);
       expect(position[4]).to.be.eq(defaultFund);
-      expect(position[5]).to.be.eq(defaultDCA);
-      expect(position[6]).to.be.eq(0);
+      expect(position[5]).to.be.eq(0);
+      expect(position[6]).to.be.eq(defaultDCA);
       expect(position[7]).to.be.eq(defaultInterval);
       expect(position[8]).to.be.eq(0);
     });
@@ -303,11 +273,6 @@ describe("DCACore", function () {
       await expect(
         dcaCore.connect(bob).depositFund(positionId, 1)
       ).to.be.revertedWith("Sender must be owner");
-    });
-    it("should revert if fund amount modulo DCA amount not equal 0", async () => {
-      await expect(
-        dcaCore.connect(alice).depositFund(positionId, defaultFund.sub(1))
-      ).to.be.revertedWith("Improper amountFund");
     });
     it("should deposit fund", async () => {
       await mintUsdc(defaultDCA, alice.address);
@@ -369,10 +334,12 @@ describe("DCACore", function () {
         dcaCore.connect(bob).withdrawFund(positionId, 1)
       ).to.be.revertedWith("Sender must be owner");
     });
-    it("should revert if fund amount modulo DCA amount not equal 0", async () => {
+    it("should revert if withdraw amount is larger than amountIn", async () => {
       await expect(
-        dcaCore.connect(alice).withdrawFund(positionId, defaultDCA.sub(1))
-      ).to.be.revertedWith("Improper amountFund");
+        dcaCore.connect(alice).withdrawFund(positionId, defaultFund.add(1))
+      ).to.be.revertedWith(
+        "reverted with panic code 0x11 (Arithmetic operation underflowed or overflowed outside of an unchecked block)"
+      );
     });
     it("should withdraw fund", async () => {
       const balanceAliceBefore = await usdc.balanceOf(aliceAddress);
@@ -439,7 +406,7 @@ describe("DCACore", function () {
       });
 
       const positionPre = await dcaCore.positions(positionId);
-      const withdrawable = positionPre[6];
+      const withdrawable = positionPre[5];
       expect(withdrawable).to.be.gt(0);
 
       const balanceAliceBefore = await weth.balanceOf(aliceAddress);
@@ -458,7 +425,7 @@ describe("DCACore", function () {
       );
 
       const positionPost = await dcaCore.positions(positionId);
-      expect(positionPost[6]).to.be.eq(0);
+      expect(positionPost[5]).to.be.eq(0);
     });
   });
 
@@ -531,7 +498,7 @@ describe("DCACore", function () {
     it("should revert if token pair is not allowed", async () => {
       await dcaCore
         .connect(deployer)
-        .setAllowedPair(usdc.address, weth.address, false);
+        .setAllowedTokenPair(usdc.address, weth.address, false);
 
       await expect(
         dcaCore.connect(executor).executeDCA(positionId, {
@@ -562,7 +529,7 @@ describe("DCACore", function () {
     });
     it("should execute DCA", async () => {
       const positionPre = await dcaCore.positions(positionId);
-      const dcaAmount = positionPre[5];
+      const dcaAmount = positionPre[6];
 
       const balanceFundBefore = await usdc.balanceOf(dcaCore.address);
       const balanceAssetBefore = await weth.balanceOf(dcaCore.address);
@@ -595,7 +562,7 @@ describe("DCACore", function () {
 
       const positionPost = await dcaCore.positions(positionId);
       expect(positionPost[4]).to.be.eq(defaultFund.sub(defaultDCA));
-      expect(positionPost[6]).to.be.eq(wethDifference);
+      expect(positionPost[5]).to.be.eq(wethDifference);
 
       const lastDCA = BigNumber.from(positionPost[8]);
       const nextDCA = lastDCA.add(positionPost[7]);
@@ -672,9 +639,9 @@ describe("DCACore", function () {
     });
     it("should execute multiple DCAs", async () => {
       const positionAlice = await dcaCore.positions(positionIds[0]);
-      const dcaAmountAlice = positionAlice[5];
+      const dcaAmountAlice = positionAlice[6];
       const positionBob = await dcaCore.positions(positionIds[2]);
-      const dcaAmountBob = positionBob[5];
+      const dcaAmountBob = positionBob[6];
 
       const balanceFundBefore = await usdc.balanceOf(dcaCore.address);
       const balanceAssetBefore = await weth.balanceOf(dcaCore.address);
@@ -714,89 +681,45 @@ describe("DCACore", function () {
     });
   });
 
-  describe("setAllowedTokenFund()", async () => {
-    it("should revert if sender is not owner", async () => {
-      await expect(
-        dcaCore.connect(alice).setAllowedTokenFund(usdc.address, false)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
-    });
-    it("should revert if new value is same to old value", async () => {
-      expect(await dcaCore.allowedTokenFunds(usdc.address)).to.be.eq(true);
-      await expect(
-        dcaCore.connect(deployer).setAllowedTokenFund(usdc.address, true)
-      ).to.be.revertedWith("Same _allowed value");
-    });
-    it("should set new value", async () => {
-      expect(await dcaCore.allowedTokenFunds(usdc.address)).to.be.eq(true);
-      await expect(
-        dcaCore.connect(deployer).setAllowedTokenFund(usdc.address, false)
-      )
-        .to.emit(dcaCore, "AllowedTokenFundSet")
-        .withArgs(usdc.address, false);
-      expect(await dcaCore.allowedTokenFunds(usdc.address)).to.be.eq(false);
-    });
-  });
-
-  describe("setAllowedTokenAsset()", async () => {
-    it("should revert if sender is not owner", async () => {
-      await expect(
-        dcaCore.connect(alice).setAllowedTokenAsset(weth.address, false)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
-    });
-    it("should revert if new value is same to old value", async () => {
-      expect(await dcaCore.allowedTokenAssets(weth.address)).to.be.eq(true);
-      await expect(
-        dcaCore.connect(deployer).setAllowedTokenAsset(weth.address, true)
-      ).to.be.revertedWith("Same _allowed value");
-    });
-    it("should set new value", async () => {
-      expect(await dcaCore.allowedTokenAssets(weth.address)).to.be.eq(true);
-      await expect(
-        dcaCore.connect(deployer).setAllowedTokenAsset(weth.address, false)
-      )
-        .to.emit(dcaCore, "AllowedTokenAssetSet")
-        .withArgs(weth.address, false);
-      expect(await dcaCore.allowedTokenAssets(weth.address)).to.be.eq(false);
-    });
-  });
-
   describe("setAllowedPair()", async () => {
     it("should revert if sender is not owner", async () => {
       await expect(
-        dcaCore.connect(alice).setAllowedPair(usdc.address, weth.address, false)
+        dcaCore
+          .connect(alice)
+          .setAllowedTokenPair(usdc.address, weth.address, false)
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
     it("should revert if fund token equal asset token", async () => {
       await expect(
         dcaCore
           .connect(deployer)
-          .setAllowedPair(usdc.address, usdc.address, false)
+          .setAllowedTokenPair(usdc.address, usdc.address, false)
       ).to.be.revertedWith("Duplicate tokens");
     });
     it("should revert if new value is same to old value", async () => {
-      expect(await dcaCore.allowedPairs(usdc.address, weth.address)).to.be.eq(
-        true
-      );
+      expect(
+        await dcaCore.allowedTokenPairs(usdc.address, weth.address)
+      ).to.be.eq(true);
       await expect(
         dcaCore
           .connect(deployer)
-          .setAllowedPair(usdc.address, weth.address, true)
+          .setAllowedTokenPair(usdc.address, weth.address, true)
       ).to.be.revertedWith("Same _allowed value");
     });
     it("should set new value", async () => {
-      expect(await dcaCore.allowedPairs(usdc.address, weth.address)).to.be.eq(
-        true
-      );
+      expect(
+        await dcaCore.allowedTokenPairs(usdc.address, weth.address)
+      ).to.be.eq(true);
       await expect(
         dcaCore
           .connect(deployer)
-          .setAllowedPair(usdc.address, weth.address, false)
+          .setAllowedTokenPair(usdc.address, weth.address, false)
       )
-        .to.emit(dcaCore, "AllowedPairSet")
+        .to.emit(dcaCore, "AllowedTokenPairSet")
         .withArgs(usdc.address, weth.address, false);
-      expect(await dcaCore.allowedPairs(usdc.address, weth.address)).to.be.eq(
-        false
-      );
+      expect(
+        await dcaCore.allowedTokenPairs(usdc.address, weth.address)
+      ).to.be.eq(false);
     });
   });
 

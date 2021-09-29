@@ -5,12 +5,12 @@ interface IDCACore {
     struct Position {
         uint256 id;
         address owner;
-        address tokenFund;
-        address tokenAsset;
-        uint256 amountFund;
+        address tokenIn;
+        address tokenOut;
+        uint256 balanceIn;
+        uint256 balanceOut;
         uint256 amountDCA;
-        uint256 amountAsset;
-        uint256 interval;
+        uint256 intervalDCA;
         uint256 lastDCA; //timestamp
     }
 
@@ -24,21 +24,18 @@ interface IDCACore {
     event PositionCreated(
         uint256 indexed positionId,
         address indexed owner,
-        address tokenFund,
-        address tokenAsset,
+        address tokenIn,
+        address tokenOut,
         uint256 amountDCA,
-        uint256 interval
+        uint256 intervalDCA
     );
     event DepositFund(uint256 indexed positionId, uint256 indexed amount);
     event WithdrawFund(uint256 indexed positionId, uint256 indexed amount);
     event Withdraw(uint256 indexed positionId, uint256 indexed amount);
     event ExecuteDCA(uint256 indexed positionId);
-
-    event AllowedTokenFundSet(address indexed token, bool indexed allowed);
-    event AllowedTokenAssetSet(address indexed token, bool indexed allowed);
-    event AllowedPairSet(
-        address indexed tokenFund,
-        address indexed tokenAsset,
+    event AllowedTokenPairSet(
+        address indexed tokenIn,
+        address indexed tokenOut,
         bool indexed allowed
     );
     event PausedSet(bool indexed paused);

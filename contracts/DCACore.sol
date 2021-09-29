@@ -15,9 +15,7 @@ contract DCACore is IDCACore, Ownable {
     address public executor;
     bool public paused;
 
-    mapping(address => bool) public allowedTokenFunds;
-    mapping(address => bool) public allowedTokenAssets;
-    mapping(address => mapping(address => bool)) public allowedPairs;
+    mapping(address => mapping(address => bool)) public allowedTokenPairs;
 
     modifier onlyExecutor() {
         require(msg.sender == executor, "Only Executor");
@@ -36,47 +34,41 @@ contract DCACore is IDCACore, Ownable {
     }
 
     function createAndDepositFund(
-        address _tokenFund,
-        address _tokenAsset,
-        uint256 _amountFund,
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _amountIn,
         uint256 _amountDCA,
-        uint256 _interval
+        uint256 _intervalDCA
     ) external payable notPaused {
-        require(allowedTokenFunds[_tokenFund], "_tokenFund not allowed");
-        require(allowedTokenAssets[_tokenAsset], "_tokenAsset not allowed");
-        require(allowedPairs[_tokenFund][_tokenAsset], "Pair not allowed");
+        require(allowedTokenPairs[_tokenIn][_tokenOut], "Pair not allowed");
         require(
-            _amountFund > 0 && _amountDCA > 0 && _interval >= 60,
+            _amountIn > 0 && _amountDCA > 0 && _intervalDCA >= 60,
             "Invalid inputs"
         );
-        require(_amountFund % _amountDCA == 0, "Improper DCA amount");
+        require(_amountIn >= _amountDCA, "Deposit for at least 1 DCA");
 
-        IERC20(_tokenFund).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _amountFund
-        );
+        IERC20(_tokenIn).safeTransferFrom(msg.sender, address(this), _amountIn);
 
         Position memory position;
         position.id = positions.length;
         position.owner = msg.sender;
-        position.tokenFund = _tokenFund;
-        position.tokenAsset = _tokenAsset;
-        position.amountFund = _amountFund;
+        position.tokenIn = _tokenIn;
+        position.tokenOut = _tokenOut;
+        position.balanceIn = _amountIn;
         position.amountDCA = _amountDCA;
-        position.interval = _interval;
+        position.intervalDCA = _intervalDCA;
 
         positions.push(position);
 
         emit PositionCreated(
             position.id,
             msg.sender,
-            _tokenFund,
-            _tokenAsset,
+            _tokenIn,
+            _tokenOut,
             _amountDCA,
-            _interval
+            _intervalDCA
         );
-        emit DepositFund(position.id, _amountFund);
+        emit DepositFund(position.id, _amountIn);
     }
 
     function depositFund(uint256 _positionId, uint256 _amount)
@@ -87,13 +79,9 @@ contract DCACore is IDCACore, Ownable {
         require(_amount > 0, "_amount must be > 0");
         Position storage position = positions[_positionId];
         require(msg.sender == position.owner, "Sender must be owner");
-        position.amountFund = position.amountFund + _amount;
-        require(
-            position.amountFund % position.amountDCA == 0,
-            "Improper amountFund"
-        );
+        position.balanceIn = position.balanceIn + _amount;
 
-        IERC20(position.tokenFund).safeTransferFrom(
+        IERC20(position.tokenIn).safeTransferFrom(
             position.owner,
             address(this),
             _amount
@@ -106,13 +94,9 @@ contract DCACore is IDCACore, Ownable {
         require(_amount > 0, "_amount must be > 0");
         Position storage position = positions[_positionId];
         require(msg.sender == position.owner, "Sender must be owner");
-        position.amountFund = position.amountFund - _amount;
-        require(
-            position.amountFund % position.amountDCA == 0,
-            "Improper amountFund"
-        );
+        position.balanceIn = position.balanceIn - _amount;
 
-        IERC20(position.tokenFund).safeTransfer(position.owner, _amount);
+        IERC20(position.tokenIn).safeTransfer(position.owner, _amount);
 
         emit WithdrawFund(_positionId, _amount);
     }
@@ -120,12 +104,12 @@ contract DCACore is IDCACore, Ownable {
     function withdraw(uint256 _positionId) external {
         Position storage position = positions[_positionId];
         require(msg.sender == position.owner, "Sender must be owner");
-        require(position.amountAsset > 0, "DCA asset amount must be > 0");
+        require(position.balanceOut > 0, "DCA asset amount must be > 0");
 
-        uint256 withdrawable = position.amountAsset;
-        position.amountAsset = 0;
+        uint256 withdrawable = position.balanceOut;
+        position.balanceOut = 0;
 
-        IERC20(position.tokenAsset).safeTransfer(position.owner, withdrawable);
+        IERC20(position.tokenOut).safeTransfer(position.owner, withdrawable);
 
         emit Withdraw(_positionId, withdrawable);
     }
@@ -142,15 +126,16 @@ contract DCACore is IDCACore, Ownable {
         if (!ready) revert(notReadyReason);
 
         require(
-            position.tokenFund == _extraData.swapPath[0] &&
-                position.tokenAsset == _extraData.swapPath[1],
+            position.tokenIn == _extraData.swapPath[0] &&
+                position.tokenOut ==
+                _extraData.swapPath[_extraData.swapPath.length - 1],
             "Invalid swap path"
         );
 
         position.lastDCA = block.timestamp; // solhint-disable-line not-rely-on-time
-        position.amountFund = position.amountFund - position.amountDCA;
+        position.balanceIn = position.balanceIn - position.amountDCA;
 
-        IERC20(position.tokenFund).approve(
+        IERC20(position.tokenIn).approve(
             address(uniRouter),
             position.amountDCA
         );
@@ -159,7 +144,7 @@ contract DCACore is IDCACore, Ownable {
             _extraData.swapAmountOutMin,
             _extraData.swapPath
         );
-        position.amountAsset = position.amountAsset + amounts[1];
+        position.balanceOut = position.balanceOut + amounts[amounts.length - 1];
 
         emit ExecuteDCA(_positionId);
     }
@@ -179,39 +164,19 @@ contract DCACore is IDCACore, Ownable {
         }
     }
 
-    function setAllowedTokenFund(address _token, bool _allowed)
-        external
-        onlyOwner
-    {
-        require(allowedTokenFunds[_token] != _allowed, "Same _allowed value");
-        allowedTokenFunds[_token] = _allowed;
-
-        emit AllowedTokenFundSet(_token, _allowed);
-    }
-
-    function setAllowedTokenAsset(address _token, bool _allowed)
-        external
-        onlyOwner
-    {
-        require(allowedTokenAssets[_token] != _allowed, "Same _allowed value");
-        allowedTokenAssets[_token] = _allowed;
-
-        emit AllowedTokenAssetSet(_token, _allowed);
-    }
-
-    function setAllowedPair(
-        address _tokenFund,
-        address _tokenAsset,
+    function setAllowedTokenPair(
+        address _tokenIn,
+        address _tokenOut,
         bool _allowed
     ) external onlyOwner {
-        require(_tokenFund != _tokenAsset, "Duplicate tokens");
+        require(_tokenIn != _tokenOut, "Duplicate tokens");
         require(
-            allowedPairs[_tokenFund][_tokenAsset] != _allowed,
+            allowedTokenPairs[_tokenIn][_tokenOut] != _allowed,
             "Same _allowed value"
         );
-        allowedPairs[_tokenFund][_tokenAsset] = _allowed;
+        allowedTokenPairs[_tokenIn][_tokenOut] = _allowed;
 
-        emit AllowedPairSet(_tokenFund, _tokenAsset, _allowed);
+        emit AllowedTokenPairSet(_tokenIn, _tokenOut, _allowed);
     }
 
     function setSystemPause(bool _paused) external onlyOwner {
@@ -227,14 +192,14 @@ contract DCACore is IDCACore, Ownable {
         returns (bool, string memory)
     {
         /* solhint-disable-next-line not-rely-on-time */
-        if ((_position.lastDCA + _position.interval) > block.timestamp) {
+        if ((_position.lastDCA + _position.intervalDCA) > block.timestamp) {
             return (false, "Not time to DCA");
         }
 
-        if (_position.amountFund < _position.amountDCA) {
+        if (_position.balanceIn < _position.amountDCA) {
             return (false, "Insufficient fund");
         }
-        if (!allowedPairs[_position.tokenFund][_position.tokenAsset]) {
+        if (!allowedTokenPairs[_position.tokenIn][_position.tokenOut]) {
             return (false, "Token pair not allowed");
         }
         return (true, "");

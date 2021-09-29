@@ -113,11 +113,9 @@ describe("Integration Test: Gelato DCA", function () {
     usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
     weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS);
 
-    await dcaCore.connect(deployer).setAllowedTokenFund(usdc.address, true);
-    await dcaCore.connect(deployer).setAllowedTokenAsset(weth.address, true);
     await dcaCore
       .connect(deployer)
-      .setAllowedPair(usdc.address, weth.address, true);
+      .setAllowedTokenPair(usdc.address, weth.address, true);
 
     await mintUsdc(defaultFund.mul(10), aliceAddress);
     await mintUsdc(defaultFund.mul(10), bobAddress);
@@ -192,7 +190,7 @@ describe("Integration Test: Gelato DCA", function () {
         await fastForwardTo(now.add(defaultInterval).toNumber());
 
         const position = await dcaCore.positions(positionId);
-        if (position[4].lt(position[5])) {
+        if (position[4].lt(position[6])) {
           hasFunds = false;
         }
       }
@@ -258,7 +256,7 @@ describe("Integration Test: Gelato DCA", function () {
       expect(tx2).to.emit(dcaCore, "ExecuteDCA").withArgs(positionId);
 
       const positionPost = await dcaCore.positions(positionId);
-      expect(positionPost[6]).to.be.gt(positionPre[6]);
+      expect(positionPost[5]).to.be.gt(positionPre[5]);
     });
 
     it("should DCA each position according to interval", async () => {

@@ -93,11 +93,9 @@ describe("DCACoreResolver", function () {
     usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
     weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS);
 
-    await dcaCore.connect(deployer).setAllowedTokenFund(usdc.address, true);
-    await dcaCore.connect(deployer).setAllowedTokenAsset(weth.address, true);
     await dcaCore
       .connect(deployer)
-      .setAllowedPair(usdc.address, weth.address, true);
+      .setAllowedTokenPair(usdc.address, weth.address, true);
 
     await mintUsdc(defaultFund.mul(10), aliceAddress);
     await mintUsdc(defaultFund.mul(10), bobAddress);

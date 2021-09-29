@@ -41,8 +41,8 @@ contract DCACoreResolver {
 
         for (uint256 i = 0; i < positions.length; i++) {
             address[] memory path = new address[](2);
-            path[0] = positions[i].tokenFund;
-            path[1] = positions[i].tokenAsset;
+            path[0] = positions[i].tokenIn;
+            path[1] = positions[i].tokenOut;
 
             uint256[] memory amounts = uniRouter.getAmountsOut(
                 positions[i].amountDCA,
