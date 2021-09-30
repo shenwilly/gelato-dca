@@ -654,6 +654,57 @@ describe("DCACore", function () {
       const positionPost = await dcaCore.positions(positionId);
       expect(positionPost[5]).to.be.eq(0);
     });
+    it("should withdraw ETH", async () => {
+      await dcaCore
+        .connect(deployer)
+        .setAllowedTokenPair(weth.address, usdc.address, true);
+      const positionId = await getNextPositionId(dcaCore);
+
+      const amountFund = parseEther("1");
+      const amountDCA = amountFund.div(10);
+
+      await dcaCore
+        .connect(alice)
+        .createPositionAndDeposit(
+          ETH_TOKEN_ADDRESS,
+          usdc.address,
+          0,
+          amountDCA,
+          defaultInterval,
+          defaultSlippage,
+          {
+            value: amountFund,
+          }
+        );
+
+      await dcaCore.connect(executor).executeDCA(positionId, {
+        swapAmountOutMin: 0,
+        swapPath: [weth.address, usdc.address],
+      });
+
+      const positionPre = await dcaCore.positions(positionId);
+      const withdrawable = positionPre[5];
+      expect(withdrawable).to.be.gt(0);
+
+      const balanceAliceBefore = await usdc.balanceOf(aliceAddress);
+      const balanceContractBefore = await usdc.balanceOf(dcaCore.address);
+
+      const tx = await dcaCore.connect(alice).withdrawTokenOut(positionId);
+      expect(tx)
+        .to.emit(dcaCore, "WithdrawTokenOut")
+        .withArgs(positionId, withdrawable);
+
+      const balanceAliceAfter = await usdc.balanceOf(aliceAddress);
+      const balanceContractAfter = await usdc.balanceOf(dcaCore.address);
+
+      expect(balanceAliceAfter.sub(balanceAliceBefore)).to.be.eq(withdrawable);
+      expect(balanceContractBefore.sub(balanceContractAfter)).to.be.eq(
+        withdrawable
+      );
+
+      const positionPost = await dcaCore.positions(positionId);
+      expect(positionPost[5]).to.be.eq(0);
+    });
   });
 
   describe("exit()", async () => {
@@ -709,6 +760,71 @@ describe("DCACore", function () {
       expect(tx)
         .to.emit(dcaCore, "WithdrawTokenOut")
         .withArgs(positionId, withdrawableEth);
+      expect(tx).to.changeEtherBalance(alice, withdrawableEth);
+
+      const balanceUsdcAliceAfter = await usdc.balanceOf(aliceAddress);
+      const balanceUsdcContractAfter = await usdc.balanceOf(dcaCore.address);
+      const balanceWethContractAfter = await weth.balanceOf(dcaCore.address);
+
+      expect(balanceUsdcAliceAfter.sub(balanceUsdcAliceBefore)).to.be.eq(
+        withdrawableUsdc
+      );
+      expect(balanceUsdcContractBefore.sub(balanceUsdcContractAfter)).to.be.eq(
+        withdrawableUsdc
+      );
+      expect(balanceWethContractBefore.sub(balanceWethContractAfter)).to.be.eq(
+        withdrawableEth
+      );
+
+      const positionPost = await dcaCore.positions(positionId);
+      expect(positionPost[4]).to.be.eq(0);
+      expect(positionPost[5]).to.be.eq(0);
+    });
+    it("should withdraw all tokenIn and tokenOut (ETH)", async () => {
+      await dcaCore
+        .connect(deployer)
+        .setAllowedTokenPair(weth.address, usdc.address, true);
+      const positionId = await getNextPositionId(dcaCore);
+
+      const amountFund = parseEther("1");
+      const amountDCA = amountFund.div(10);
+
+      await dcaCore
+        .connect(alice)
+        .createPositionAndDeposit(
+          ETH_TOKEN_ADDRESS,
+          usdc.address,
+          0,
+          amountDCA,
+          defaultInterval,
+          defaultSlippage,
+          {
+            value: amountFund,
+          }
+        );
+
+      await dcaCore.connect(executor).executeDCA(positionId, {
+        swapAmountOutMin: 0,
+        swapPath: [weth.address, usdc.address],
+      });
+
+      const positionPre = await dcaCore.positions(positionId);
+      const withdrawableUsdc = positionPre[5];
+      expect(withdrawableUsdc).to.be.gt(0);
+
+      const balanceUsdcAliceBefore = await usdc.balanceOf(aliceAddress);
+      const balanceUsdcContractBefore = await usdc.balanceOf(dcaCore.address);
+      const balanceWethContractBefore = await weth.balanceOf(dcaCore.address);
+
+      const withdrawableEth = amountFund.sub(amountDCA);
+
+      const tx = await dcaCore.connect(alice).exit(positionId);
+      expect(tx)
+        .to.emit(dcaCore, "WithdrawTokenIn")
+        .withArgs(positionId, withdrawableEth);
+      expect(tx)
+        .to.emit(dcaCore, "WithdrawTokenOut")
+        .withArgs(positionId, withdrawableUsdc);
       expect(tx).to.changeEtherBalance(alice, withdrawableEth);
 
       const balanceUsdcAliceAfter = await usdc.balanceOf(aliceAddress);
