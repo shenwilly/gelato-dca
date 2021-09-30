@@ -5,6 +5,7 @@ import chai from "chai";
 import { solidity } from "ethereum-waffle";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
+  ETH_TOKEN_ADDRESS,
   SUSHISWAP_ROUTER_ADDRESS,
   USDC_ADDRESS,
   USDC_DECIMALS,
@@ -17,7 +18,7 @@ import {
   getNextPositionId,
   mintUsdc,
 } from "../helpers/utils";
-import { parseUnits } from "@ethersproject/units";
+import { parseEther, parseUnits } from "@ethersproject/units";
 
 const { expect } = chai;
 chai.use(solidity);
@@ -360,6 +361,102 @@ describe("DCACore", function () {
 
       const position = await dcaCore.positions(positionId);
       expect(position[4]).to.be.eq(defaultFund.add(defaultDCA));
+    });
+  });
+
+  describe("depositETH()", async () => {
+    let positionId: BigNumber;
+    let amountFund: BigNumber;
+    let amountDCA: BigNumber;
+
+    beforeEach(async () => {
+      positionId = await getNextPositionId(dcaCore);
+
+      await dcaCore
+        .connect(deployer)
+        .setAllowedTokenPair(weth.address, usdc.address, true);
+      amountFund = parseEther("1");
+      amountDCA = amountFund.div(10);
+
+      await dcaCore
+        .connect(alice)
+        .createPositionAndDeposit(
+          ETH_TOKEN_ADDRESS,
+          usdc.address,
+          0,
+          amountDCA,
+          defaultInterval,
+          defaultSlippage,
+          {
+            value: amountFund,
+          }
+        );
+    });
+
+    it("should revert if position does not exist", async () => {
+      await expect(
+        dcaCore
+          .connect(alice)
+          .depositETH(positionId.add(1), { value: defaultDCA })
+      ).to.be.revertedWith(
+        "reverted with panic code 0x32 (Array accessed at an out-of-bounds or negative index"
+      );
+    });
+    it("should revert if system is paused", async () => {
+      await dcaCore.connect(deployer).setSystemPause(true);
+      await expect(
+        dcaCore.connect(alice).depositETH(positionId, { value: defaultDCA })
+      ).to.be.revertedWith("System is paused");
+    });
+    it("should revert if amount is 0", async () => {
+      await expect(
+        dcaCore.connect(alice).depositETH(positionId)
+      ).to.be.revertedWith("msg.value must be > 0");
+    });
+    it("should revert if sender is not position owner", async () => {
+      await expect(
+        dcaCore.connect(bob).depositETH(positionId, { value: defaultDCA })
+      ).to.be.revertedWith("Sender must be owner");
+    });
+    it("should revert if tokenIn is not weth", async () => {
+      const positionId = await getNextPositionId(dcaCore);
+      await dcaCore
+        .connect(alice)
+        .createPositionAndDeposit(
+          usdc.address,
+          weth.address,
+          defaultFund,
+          defaultDCA,
+          defaultInterval,
+          defaultSlippage
+        );
+      await expect(
+        dcaCore.connect(alice).depositETH(positionId, { value: defaultDCA })
+      ).to.be.revertedWith("tokenIn must be WETH");
+    });
+    it("should deposit ETH", async () => {
+      const balanceAliceBefore = await ethers.provider.getBalance(aliceAddress);
+      const balanceContractBefore = await weth.balanceOf(dcaCore.address);
+
+      const tx = await dcaCore
+        .connect(alice)
+        .depositETH(positionId, { value: amountDCA });
+      expect(tx).to.emit(dcaCore, "Deposit").withArgs(positionId, amountDCA);
+      const receipt = await tx.wait();
+      const gasUsed = parseUnits(receipt.gasUsed.toString(), "gwei");
+
+      const balanceAliceAfter = await ethers.provider.getBalance(aliceAddress);
+      const balanceContractAfter = await weth.balanceOf(dcaCore.address);
+
+      expect(balanceAliceBefore.sub(balanceAliceAfter).sub(gasUsed)).to.be.eq(
+        amountDCA
+      );
+      expect(balanceContractAfter.sub(balanceContractBefore)).to.be.eq(
+        amountDCA
+      );
+
+      const position = await dcaCore.positions(positionId);
+      expect(position[4]).to.be.eq(amountFund.add(amountDCA));
     });
   });
 
