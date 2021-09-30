@@ -78,6 +78,9 @@ describe("DCACore", function () {
       .setAllowedTokenPair(usdc.address, weth.address, true);
 
     await mintUsdc(defaultFund, aliceAddress);
+    await usdc
+      .connect(alice)
+      .approve(dcaCore.address, ethers.constants.MaxUint256);
 
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
@@ -191,7 +194,6 @@ describe("DCACore", function () {
     });
     it("should create position and deposit fund", async () => {
       const positionId = await getNextPositionId(dcaCore);
-      await usdc.connect(alice).approve(dcaCore.address, defaultFund);
 
       const balanceAliceBefore = await usdc.balanceOf(aliceAddress);
       const balanceContractBefore = await usdc.balanceOf(dcaCore.address);
@@ -247,9 +249,6 @@ describe("DCACore", function () {
 
     beforeEach(async () => {
       positionId = await getNextPositionId(dcaCore);
-      await usdc
-        .connect(alice)
-        .approve(dcaCore.address, ethers.constants.MaxUint256);
 
       await dcaCore
         .connect(alice)
@@ -305,9 +304,6 @@ describe("DCACore", function () {
 
     beforeEach(async () => {
       positionId = await getNextPositionId(dcaCore);
-      await usdc
-        .connect(alice)
-        .approve(dcaCore.address, ethers.constants.MaxUint256);
 
       await dcaCore
         .connect(alice)
@@ -372,9 +368,6 @@ describe("DCACore", function () {
 
     beforeEach(async () => {
       positionId = await getNextPositionId(dcaCore);
-      await usdc
-        .connect(alice)
-        .approve(dcaCore.address, ethers.constants.MaxUint256);
 
       await dcaCore
         .connect(alice)
@@ -440,9 +433,6 @@ describe("DCACore", function () {
 
     beforeEach(async () => {
       positionId = await getNextPositionId(dcaCore);
-      await usdc
-        .connect(alice)
-        .approve(dcaCore.address, ethers.constants.MaxUint256);
 
       await dcaCore
         .connect(alice)
@@ -483,17 +473,22 @@ describe("DCACore", function () {
       const withdrawable = positionPre[5];
       expect(withdrawable).to.be.gt(0);
 
-      const balanceAliceBefore = await weth.balanceOf(aliceAddress);
+      const balanceAliceBefore = await ethers.provider.getBalance(aliceAddress);
       const balanceContractBefore = await weth.balanceOf(dcaCore.address);
 
-      await expect(dcaCore.connect(alice).withdrawTokenOut(positionId))
+      const tx = await dcaCore.connect(alice).withdrawTokenOut(positionId);
+      expect(tx)
         .to.emit(dcaCore, "WithdrawTokenOut")
         .withArgs(positionId, withdrawable);
+      const receipt = await tx.wait();
+      const gasUsed = parseUnits(receipt.gasUsed.toString(), "gwei");
 
-      const balanceAliceAfter = await weth.balanceOf(aliceAddress);
+      const balanceAliceAfter = await ethers.provider.getBalance(aliceAddress);
       const balanceContractAfter = await weth.balanceOf(dcaCore.address);
 
-      expect(balanceAliceAfter.sub(balanceAliceBefore)).to.be.eq(withdrawable);
+      expect(balanceAliceAfter.sub(balanceAliceBefore).add(gasUsed)).to.be.eq(
+        withdrawable
+      );
       expect(balanceContractBefore.sub(balanceContractAfter)).to.be.eq(
         withdrawable
       );
@@ -508,9 +503,6 @@ describe("DCACore", function () {
 
     beforeEach(async () => {
       positionId = await getNextPositionId(dcaCore);
-      await usdc
-        .connect(alice)
-        .approve(dcaCore.address, ethers.constants.MaxUint256);
 
       await dcaCore
         .connect(alice)
@@ -547,7 +539,9 @@ describe("DCACore", function () {
       expect(withdrawableEth).to.be.gt(0);
 
       const balanceUsdcAliceBefore = await usdc.balanceOf(aliceAddress);
-      const balanceWethAliceBefore = await weth.balanceOf(aliceAddress);
+      const balanceEthAliceBefore = await ethers.provider.getBalance(
+        aliceAddress
+      );
       const balanceUsdcContractBefore = await usdc.balanceOf(dcaCore.address);
       const balanceWethContractBefore = await weth.balanceOf(dcaCore.address);
 
@@ -560,18 +554,22 @@ describe("DCACore", function () {
       expect(tx)
         .to.emit(dcaCore, "WithdrawTokenOut")
         .withArgs(positionId, withdrawableEth);
+      const receipt = await tx.wait();
+      const gasUsed = parseUnits(receipt.gasUsed.toString(), "gwei");
 
       const balanceUsdcAliceAfter = await usdc.balanceOf(aliceAddress);
-      const balanceWethAliceAfter = await weth.balanceOf(aliceAddress);
+      const balanceEthAliceAfter = await ethers.provider.getBalance(
+        aliceAddress
+      );
       const balanceUsdcContractAfter = await usdc.balanceOf(dcaCore.address);
       const balanceWethContractAfter = await weth.balanceOf(dcaCore.address);
 
       expect(balanceUsdcAliceAfter.sub(balanceUsdcAliceBefore)).to.be.eq(
         withdrawableUsdc
       );
-      expect(balanceWethAliceAfter.sub(balanceWethAliceBefore)).to.be.eq(
-        withdrawableEth
-      );
+      expect(
+        balanceEthAliceAfter.sub(balanceEthAliceBefore).add(gasUsed)
+      ).to.be.eq(withdrawableEth);
       expect(balanceUsdcContractBefore.sub(balanceUsdcContractAfter)).to.be.eq(
         withdrawableUsdc
       );
@@ -590,9 +588,6 @@ describe("DCACore", function () {
 
     beforeEach(async () => {
       positionId = await getNextPositionId(dcaCore);
-      await usdc
-        .connect(alice)
-        .approve(dcaCore.address, ethers.constants.MaxUint256);
 
       await dcaCore
         .connect(alice)
@@ -747,9 +742,7 @@ describe("DCACore", function () {
     beforeEach(async () => {
       await mintUsdc(defaultFund, aliceAddress);
       await mintUsdc(defaultFund, bobAddress);
-      await usdc
-        .connect(alice)
-        .approve(dcaCore.address, ethers.constants.MaxUint256);
+
       await usdc
         .connect(bob)
         .approve(dcaCore.address, ethers.constants.MaxUint256);
@@ -941,9 +934,6 @@ describe("DCACore", function () {
     it("should get next positionId", async () => {
       expect(await dcaCore.getNextPositionId()).to.be.eq(0);
 
-      await usdc
-        .connect(alice)
-        .approve(dcaCore.address, ethers.constants.MaxUint256);
       await dcaCore
         .connect(alice)
         .createPositionAndDeposit(
@@ -962,9 +952,6 @@ describe("DCACore", function () {
   describe("getReadyPositionIds()", async () => {
     it("should return ids of active positions", async () => {
       await mintUsdc(defaultFund.mul(10), aliceAddress);
-      await usdc
-        .connect(alice)
-        .approve(dcaCore.address, ethers.constants.MaxUint256);
 
       const emptyIds = await dcaCore.getReadyPositionIds();
       expect(emptyIds.length).to.be.eq(0);
@@ -1016,9 +1003,6 @@ describe("DCACore", function () {
     });
     it("should return selected positions", async () => {
       await mintUsdc(defaultFund.mul(10), aliceAddress);
-      await usdc
-        .connect(alice)
-        .approve(dcaCore.address, ethers.constants.MaxUint256);
 
       const emptyPositions = await dcaCore.getPositions([]);
       expect(emptyPositions.length).to.be.eq(0);
