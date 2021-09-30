@@ -53,10 +53,13 @@ describe("DCACore", function () {
     bobAddress = bob.address;
     executorAddress = executor.address;
 
+    usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
+    weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS[chainId]);
+
     defaultFund = parseUnits("10000", USDC_DECIMALS);
     defaultDCA = defaultFund.div(10);
     defaultInterval = 60; // second;
-    defaultSwapPath = [USDC_ADDRESS, WETH_ADDRESS];
+    defaultSwapPath = [USDC_ADDRESS, weth.address];
 
     const DCACoreFactory = (await ethers.getContractFactory(
       "DCACore",
@@ -64,13 +67,11 @@ describe("DCACore", function () {
     )) as DCACore__factory;
     dcaCore = await DCACoreFactory.deploy(
       SUSHISWAP_ROUTER_ADDRESS[chainId],
-      executorAddress
+      executorAddress,
+      weth.address
     );
     await dcaCore.deployed();
     defaultSlippage = await dcaCore.minSlippage();
-
-    usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
-    weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS);
 
     await dcaCore
       .connect(deployer)

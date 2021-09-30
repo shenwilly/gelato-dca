@@ -76,13 +76,17 @@ describe("Integration Test: Gelato DCA", function () {
     defaultInterval = 60; // second;
     defaultGelatoFee = parseEther("0.05");
 
+    usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
+    weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS[chainId]);
+
     const DCACoreFactory = (await ethers.getContractFactory(
       "DCACore",
       deployer
     )) as DCACore__factory;
     dcaCore = await DCACoreFactory.deploy(
       SUSHISWAP_ROUTER_ADDRESS[chainId],
-      POKEME_ADDRESS[chainId]
+      POKEME_ADDRESS[chainId],
+      weth.address
     );
     await dcaCore.deployed();
     defaultSlippage = await dcaCore.minSlippage();
@@ -111,9 +115,6 @@ describe("Integration Test: Gelato DCA", function () {
       .depositFunds(deployerAddress, ETH_TOKEN_ADDRESS, 0, {
         value: parseEther("1"),
       });
-
-    usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
-    weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS);
 
     await dcaCore
       .connect(deployer)

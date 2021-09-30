@@ -6,6 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IDCACore} from "./interfaces/IDCACore.sol";
 import {IUniswapV2Router} from "./interfaces/IUniswapV2Router.sol";
+import {IWETH} from "./external/IWETH.sol";
 
 contract DCACore is IDCACore, Ownable {
     using SafeERC20 for IERC20;
@@ -18,6 +19,10 @@ contract DCACore is IDCACore, Ownable {
     mapping(address => mapping(address => bool)) public allowedTokenPairs;
     uint256 public minSlippage = 25; // 0.25%
 
+    address public constant ETH_TOKEN =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address public immutable weth;
+
     modifier onlyExecutor() {
         require(msg.sender == executor, "Only Executor");
         _;
@@ -28,9 +33,16 @@ contract DCACore is IDCACore, Ownable {
         _;
     }
 
-    constructor(address _uniRouter, address _executor) {
+    receive() external payable {} // solhint-disable-line no-empty-blocks
+
+    constructor(
+        address _uniRouter,
+        address _executor,
+        address _weth
+    ) {
         uniRouter = IUniswapV2Router(_uniRouter);
         executor = _executor;
+        weth = _weth;
         paused = false;
     }
 
@@ -42,24 +54,37 @@ contract DCACore is IDCACore, Ownable {
         uint256 _intervalDCA,
         uint256 _maxSlippage
     ) external payable notPaused {
-        require(allowedTokenPairs[_tokenIn][_tokenOut], "Pair not allowed");
+        uint256 amountIn;
+        address tokenIn;
+        if (_tokenIn == ETH_TOKEN) {
+            tokenIn = weth;
+            IWETH(weth).deposit{value: msg.value}();
+            amountIn = msg.value;
+        } else {
+            IERC20(_tokenIn).safeTransferFrom(
+                msg.sender,
+                address(this),
+                _amountIn
+            );
+            amountIn = _amountIn;
+        }
+
+        require(allowedTokenPairs[tokenIn][_tokenOut], "Pair not allowed");
         require(
-            _amountIn > 0 &&
+            amountIn > 0 &&
                 _amountDCA > 0 &&
                 _intervalDCA >= 60 &&
                 _maxSlippage >= minSlippage,
             "Invalid inputs"
         );
-        require(_amountIn >= _amountDCA, "Deposit for at least 1 DCA");
-
-        IERC20(_tokenIn).safeTransferFrom(msg.sender, address(this), _amountIn);
+        require(amountIn >= _amountDCA, "Deposit for at least 1 DCA");
 
         Position memory position;
         position.id = positions.length;
         position.owner = msg.sender;
-        position.tokenIn = _tokenIn;
+        position.tokenIn = tokenIn;
         position.tokenOut = _tokenOut;
-        position.balanceIn = _amountIn;
+        position.balanceIn = amountIn;
         position.amountDCA = _amountDCA;
         position.intervalDCA = _intervalDCA;
         position.maxSlippage = _maxSlippage;
@@ -92,14 +117,11 @@ contract DCACore is IDCACore, Ownable {
         emit PositionUpdated(_positionId, _amountDCA, _intervalDCA);
     }
 
-    function deposit(uint256 _positionId, uint256 _amount)
-        external
-        payable
-        notPaused
-    {
-        require(_amount > 0, "_amount must be > 0");
+    function deposit(uint256 _positionId, uint256 _amount) external notPaused {
+        require(_amount > 0, "deposit amount must be > 0");
         Position storage position = positions[_positionId];
         require(msg.sender == position.owner, "Sender must be owner");
+
         position.balanceIn = position.balanceIn + _amount;
 
         IERC20(position.tokenIn).safeTransferFrom(
@@ -111,13 +133,26 @@ contract DCACore is IDCACore, Ownable {
         emit Deposit(_positionId, _amount);
     }
 
+    function depositETH(uint256 _positionId) external payable notPaused {
+        require(msg.value > 0, "deposit amount must be > 0");
+        IWETH(weth).deposit{value: msg.value}();
+
+        Position storage position = positions[_positionId];
+        require(msg.sender == position.owner, "Sender must be owner");
+        require(position.tokenIn == weth, "tokenIn must be WETH");
+
+        position.balanceIn = position.balanceIn + msg.value;
+
+        emit Deposit(_positionId, msg.value);
+    }
+
     function withdrawTokenIn(uint256 _positionId, uint256 _amount) public {
         require(_amount > 0, "_amount must be > 0");
         Position storage position = positions[_positionId];
         require(msg.sender == position.owner, "Sender must be owner");
 
         position.balanceIn = position.balanceIn - _amount;
-        IERC20(position.tokenIn).safeTransfer(position.owner, _amount);
+        _transfer(payable(position.owner), position.tokenIn, _amount);
 
         emit WithdrawTokenIn(_positionId, _amount);
     }
@@ -129,7 +164,7 @@ contract DCACore is IDCACore, Ownable {
 
         uint256 withdrawable = position.balanceOut;
         position.balanceOut = 0;
-        IERC20(position.tokenOut).safeTransfer(position.owner, withdrawable);
+        _transfer(payable(position.owner), position.tokenOut, withdrawable);
 
         emit WithdrawTokenOut(_positionId, withdrawable);
     }
@@ -142,8 +177,9 @@ contract DCACore is IDCACore, Ownable {
             uint256 withdrawableTokenIn = position.balanceIn;
             position.balanceIn = 0;
 
-            IERC20(position.tokenIn).safeTransfer(
-                position.owner,
+            _transfer(
+                payable(position.owner),
+                position.tokenIn,
                 withdrawableTokenIn
             );
             emit WithdrawTokenIn(_positionId, withdrawableTokenIn);
@@ -153,8 +189,9 @@ contract DCACore is IDCACore, Ownable {
             uint256 withdrawableTokenOut = position.balanceOut;
             position.balanceOut = 0;
 
-            IERC20(position.tokenOut).safeTransfer(
-                position.owner,
+            _transfer(
+                payable(position.owner),
+                position.tokenOut,
                 withdrawableTokenOut
             );
             emit WithdrawTokenOut(_positionId, withdrawableTokenOut);
@@ -276,6 +313,20 @@ contract DCACore is IDCACore, Ownable {
                 address(this),
                 block.timestamp // solhint-disable-line not-rely-on-time,
             );
+    }
+
+    function _transfer(
+        address payable _to,
+        address _token,
+        uint256 _amount
+    ) internal {
+        if (_token == weth) {
+            // solhint-disable-next-line avoid-low-level-calls,
+            (bool success, ) = _to.call{value: _amount}("");
+            require(success, "ETH transfer failed");
+        } else {
+            IERC20(_token).safeTransfer(_to, _amount);
+        }
     }
 
     function getNextPositionId() external view returns (uint256) {
