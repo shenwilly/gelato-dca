@@ -76,7 +76,7 @@ describe("Integration Test: Gelato DCA", function () {
     defaultInterval = 60; // second;
     defaultGelatoFee = parseEther("0.05");
 
-    usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
+    usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS[chainId]);
     weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS[chainId]);
 
     const DCACoreFactory = (await ethers.getContractFactory(

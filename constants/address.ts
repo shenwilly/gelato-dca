@@ -22,8 +22,11 @@ export const WETH_ADDRESS: { [key: number]: string } = {
   1: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
   3: "0xc778417e063141139fce010982780140aa0cd5ab",
 };
+export const USDC_ADDRESS: { [key: number]: string } = {
+  1: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  3: "0x07865c6e87b9f70255377e024ace6630c1eaa37f",
+};
 
-export const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 export const ETH_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
 export const USDC_MINTER = "0xae2d4617c862309a3d75a0ffb358c7a5009c673f";
