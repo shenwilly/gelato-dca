@@ -1,24 +1,35 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// When running the script with `npx hardhat run <script>` you'll find the Hardhat
-// Runtime Environment's members available in the global scope.
-const hre = require("hardhat");
+import hre from "hardhat";
+import {
+  POKEME_ADDRESS,
+  SUSHISWAP_ROUTER_ADDRESS,
+  WETH_ADDRESS,
+} from "../constants";
+import { DCACoreResolver__factory, DCACore__factory } from "../typechain";
 
 async function main() {
-  // Hardhat always runs the compile task when running scripts with its command
-  // line interface.
-  //
-  // If this script is run directly using `node` you may want to call compile
-  // manually to make sure everything is compiled
-  // await hre.run('compile');
+  const [signer] = await hre.ethers.getSigners();
+  const chainId = 3;
+  const DCACoreFactory = <DCACore__factory>(
+    await hre.ethers.getContractFactory("DCACore", signer)
+  );
 
-  // We get the contract to deploy
-  const Greeter = await hre.ethers.getContractFactory("Greeter");
-  const greeter = await Greeter.deploy("Hello");
-  await greeter.deployed();
+  const dcaCore = await DCACoreFactory.deploy(
+    SUSHISWAP_ROUTER_ADDRESS[chainId],
+    POKEME_ADDRESS[chainId],
+    WETH_ADDRESS[chainId]
+  );
+  await dcaCore.deployed();
+  console.log("DCACore deployed to:", dcaCore.address);
 
-  console.log("Greeter deployed to:", greeter.address);
+  const DCACoreResolverFactory = <DCACoreResolver__factory>(
+    await hre.ethers.getContractFactory("DCACoreResolver", signer)
+  );
+  const resolver = await DCACoreResolverFactory.deploy(
+    dcaCore.address,
+    SUSHISWAP_ROUTER_ADDRESS[chainId]
+  );
+  await resolver.deployed();
+  console.log("Resolver deployed to:", resolver.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
