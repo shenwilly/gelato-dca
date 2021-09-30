@@ -1,6 +1,6 @@
-# Hardhat Typescript Template
+# Gelato DCA Dapp
 
-Boilerplate Hardhat project
+Smart contracts for doing Dollar Cost Averaging, powered by Gelato.
 
 ## Installation
 
