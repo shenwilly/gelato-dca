@@ -212,7 +212,6 @@ describe("DCACore", function () {
     it("should create position and deposit ETH fund", async () => {
       const positionId = await getNextPositionId(dcaCore);
 
-      const balanceAliceBefore = await ethers.provider.getBalance(aliceAddress);
       const balanceContractBefore = await weth.balanceOf(dcaCore.address);
 
       await dcaCore
@@ -247,15 +246,10 @@ describe("DCACore", function () {
           defaultSlippage
         );
       expect(tx).to.emit(dcaCore, "Deposit").withArgs(positionId, amountFund);
-      const receipt = await tx.wait();
-      const gasUsed = parseUnits(receipt.gasUsed.toString(), "gwei");
+      expect(tx).to.changeEtherBalance(alice, amountFund.mul(-1));
 
-      const balanceAliceAfter = await ethers.provider.getBalance(aliceAddress);
       const balanceContractAfter = await weth.balanceOf(dcaCore.address);
 
-      expect(balanceAliceBefore.sub(balanceAliceAfter).sub(gasUsed)).to.be.eq(
-        amountFund
-      );
       expect(balanceContractAfter.sub(balanceContractBefore)).to.be.eq(
         amountFund
       );
@@ -514,22 +508,16 @@ describe("DCACore", function () {
       ).to.be.revertedWith("tokenIn must be WETH");
     });
     it("should deposit ETH", async () => {
-      const balanceAliceBefore = await ethers.provider.getBalance(aliceAddress);
       const balanceContractBefore = await weth.balanceOf(dcaCore.address);
 
       const tx = await dcaCore
         .connect(alice)
         .depositETH(positionId, { value: amountDCA });
       expect(tx).to.emit(dcaCore, "Deposit").withArgs(positionId, amountDCA);
-      const receipt = await tx.wait();
-      const gasUsed = parseUnits(receipt.gasUsed.toString(), "gwei");
+      expect(tx).to.changeEtherBalance(alice, amountDCA.mul(-1));
 
-      const balanceAliceAfter = await ethers.provider.getBalance(aliceAddress);
       const balanceContractAfter = await weth.balanceOf(dcaCore.address);
 
-      expect(balanceAliceBefore.sub(balanceAliceAfter).sub(gasUsed)).to.be.eq(
-        amountDCA
-      );
       expect(balanceContractAfter.sub(balanceContractBefore)).to.be.eq(
         amountDCA
       );
@@ -649,22 +637,16 @@ describe("DCACore", function () {
       const withdrawable = positionPre[5];
       expect(withdrawable).to.be.gt(0);
 
-      const balanceAliceBefore = await ethers.provider.getBalance(aliceAddress);
       const balanceContractBefore = await weth.balanceOf(dcaCore.address);
 
       const tx = await dcaCore.connect(alice).withdrawTokenOut(positionId);
       expect(tx)
         .to.emit(dcaCore, "WithdrawTokenOut")
         .withArgs(positionId, withdrawable);
-      const receipt = await tx.wait();
-      const gasUsed = parseUnits(receipt.gasUsed.toString(), "gwei");
+      expect(tx).to.changeEtherBalance(alice, withdrawable);
 
-      const balanceAliceAfter = await ethers.provider.getBalance(aliceAddress);
       const balanceContractAfter = await weth.balanceOf(dcaCore.address);
 
-      expect(balanceAliceAfter.sub(balanceAliceBefore).add(gasUsed)).to.be.eq(
-        withdrawable
-      );
       expect(balanceContractBefore.sub(balanceContractAfter)).to.be.eq(
         withdrawable
       );
@@ -715,9 +697,6 @@ describe("DCACore", function () {
       expect(withdrawableEth).to.be.gt(0);
 
       const balanceUsdcAliceBefore = await usdc.balanceOf(aliceAddress);
-      const balanceEthAliceBefore = await ethers.provider.getBalance(
-        aliceAddress
-      );
       const balanceUsdcContractBefore = await usdc.balanceOf(dcaCore.address);
       const balanceWethContractBefore = await weth.balanceOf(dcaCore.address);
 
@@ -730,22 +709,15 @@ describe("DCACore", function () {
       expect(tx)
         .to.emit(dcaCore, "WithdrawTokenOut")
         .withArgs(positionId, withdrawableEth);
-      const receipt = await tx.wait();
-      const gasUsed = parseUnits(receipt.gasUsed.toString(), "gwei");
+      expect(tx).to.changeEtherBalance(alice, withdrawableEth);
 
       const balanceUsdcAliceAfter = await usdc.balanceOf(aliceAddress);
-      const balanceEthAliceAfter = await ethers.provider.getBalance(
-        aliceAddress
-      );
       const balanceUsdcContractAfter = await usdc.balanceOf(dcaCore.address);
       const balanceWethContractAfter = await weth.balanceOf(dcaCore.address);
 
       expect(balanceUsdcAliceAfter.sub(balanceUsdcAliceBefore)).to.be.eq(
         withdrawableUsdc
       );
-      expect(
-        balanceEthAliceAfter.sub(balanceEthAliceBefore).add(gasUsed)
-      ).to.be.eq(withdrawableEth);
       expect(balanceUsdcContractBefore.sub(balanceUsdcContractAfter)).to.be.eq(
         withdrawableUsdc
       );
