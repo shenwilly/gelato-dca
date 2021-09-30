@@ -61,6 +61,7 @@ contract DCACore is IDCACore, Ownable {
             IWETH(weth).deposit{value: msg.value}();
             amountIn = msg.value;
         } else {
+            tokenIn = _tokenIn;
             IERC20(_tokenIn).safeTransferFrom(
                 msg.sender,
                 address(this),
@@ -118,7 +119,7 @@ contract DCACore is IDCACore, Ownable {
     }
 
     function deposit(uint256 _positionId, uint256 _amount) external notPaused {
-        require(_amount > 0, "deposit amount must be > 0");
+        require(_amount > 0, "_amount must be > 0");
         Position storage position = positions[_positionId];
         require(msg.sender == position.owner, "Sender must be owner");
 
@@ -134,7 +135,7 @@ contract DCACore is IDCACore, Ownable {
     }
 
     function depositETH(uint256 _positionId) external payable notPaused {
-        require(msg.value > 0, "deposit amount must be > 0");
+        require(msg.value > 0, "msg.value must be > 0");
         IWETH(weth).deposit{value: msg.value}();
 
         Position storage position = positions[_positionId];
@@ -321,6 +322,7 @@ contract DCACore is IDCACore, Ownable {
         uint256 _amount
     ) internal {
         if (_token == weth) {
+            IWETH(weth).withdraw(_amount);
             // solhint-disable-next-line avoid-low-level-calls,
             (bool success, ) = _to.call{value: _amount}("");
             require(success, "ETH transfer failed");
