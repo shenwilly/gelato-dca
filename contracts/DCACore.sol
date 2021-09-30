@@ -95,13 +95,13 @@ contract DCACore is IDCACore, Ownable {
         emit PositionCreated(
             position.id,
             msg.sender,
-            _tokenIn,
+            tokenIn,
             _tokenOut,
             _amountDCA,
             _intervalDCA,
             _maxSlippage
         );
-        emit Deposit(position.id, _amountIn);
+        emit Deposit(position.id, amountIn);
     }
 
     function updatePosition(
