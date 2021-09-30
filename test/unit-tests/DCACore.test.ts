@@ -137,6 +137,22 @@ describe("DCACore", function () {
             defaultSlippage
           )
       ).to.be.revertedWith("Invalid inputs");
+
+      await dcaCore
+        .connect(deployer)
+        .setAllowedTokenPair(weth.address, usdc.address, true);
+      await expect(
+        dcaCore
+          .connect(alice)
+          .createPositionAndDeposit(
+            ETH_TOKEN_ADDRESS,
+            usdc.address,
+            defaultFund,
+            defaultDCA,
+            defaultInterval,
+            defaultSlippage
+          )
+      ).to.be.revertedWith("Invalid inputs");
     });
     it("should revert if DCA amount is 0", async () => {
       await expect(
@@ -192,6 +208,69 @@ describe("DCACore", function () {
             defaultSlippage
           )
       ).to.be.revertedWith("Deposit for at least 1 DCA");
+    });
+    it("should create position and deposit ETH fund", async () => {
+      const positionId = await getNextPositionId(dcaCore);
+
+      const balanceAliceBefore = await ethers.provider.getBalance(aliceAddress);
+      const balanceContractBefore = await weth.balanceOf(dcaCore.address);
+
+      await dcaCore
+        .connect(deployer)
+        .setAllowedTokenPair(weth.address, usdc.address, true);
+      const amountFund = parseEther("1");
+      const amountDCA = amountFund.div(10);
+
+      const tx = await dcaCore
+        .connect(alice)
+        .createPositionAndDeposit(
+          ETH_TOKEN_ADDRESS,
+          usdc.address,
+          0,
+          amountDCA,
+          defaultInterval,
+          defaultSlippage,
+          {
+            value: amountFund,
+          }
+        );
+
+      expect(tx)
+        .to.emit(dcaCore, "PositionCreated")
+        .withArgs(
+          positionId,
+          aliceAddress,
+          weth.address,
+          usdc.address,
+          amountDCA,
+          defaultInterval,
+          defaultSlippage
+        );
+      expect(tx).to.emit(dcaCore, "Deposit").withArgs(positionId, amountFund);
+      const receipt = await tx.wait();
+      const gasUsed = parseUnits(receipt.gasUsed.toString(), "gwei");
+
+      const balanceAliceAfter = await ethers.provider.getBalance(aliceAddress);
+      const balanceContractAfter = await weth.balanceOf(dcaCore.address);
+
+      expect(balanceAliceBefore.sub(balanceAliceAfter).sub(gasUsed)).to.be.eq(
+        amountFund
+      );
+      expect(balanceContractAfter.sub(balanceContractBefore)).to.be.eq(
+        amountFund
+      );
+
+      const position = await dcaCore.positions(positionId);
+      expect(position[0]).to.be.eq(positionId);
+      expect(position[1]).to.be.eq(aliceAddress);
+      expect(position[2]).to.be.eq(weth.address);
+      expect(position[3]).to.be.eq(usdc.address);
+      expect(position[4]).to.be.eq(amountFund);
+      expect(position[5]).to.be.eq(0);
+      expect(position[6]).to.be.eq(amountDCA);
+      expect(position[7]).to.be.eq(defaultInterval);
+      expect(position[8]).to.be.eq(0);
+      expect(position[9]).to.be.eq(defaultSlippage);
     });
     it("should create position and deposit fund", async () => {
       const positionId = await getNextPositionId(dcaCore);
