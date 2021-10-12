@@ -18,6 +18,8 @@ import {
   NETWORK_ROPSTEN_URL,
   RINKEBY_PRIVATE_KEY,
   ROPSTEN_PRIVATE_KEY,
+  NETWORK_POLYGON_URL,
+  POLYGON_PRIVATE_KEY,
 } from "./constants";
 
 import "./tasks/accounts";
@@ -63,6 +65,10 @@ const config: HardhatUserConfig = {
     ropsten: {
       url: NETWORK_ROPSTEN_URL,
       accounts: [ROPSTEN_PRIVATE_KEY],
+    },
+    polygon: {
+      url: NETWORK_POLYGON_URL,
+      accounts: [POLYGON_PRIVATE_KEY],
     },
   },
   etherscan: {

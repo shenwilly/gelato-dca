@@ -1,6 +1,6 @@
 import { parseEther } from "ethers/lib/utils";
 import hre from "hardhat";
-import { CORE_ADDRESS, USDC_ADDRESS, WETH_ADDRESS } from "../constants";
+import { CORE_ADDRESS, USDC_ADDRESS, WNATIVE_ADDRESS } from "../constants";
 import { DCACore } from "../typechain";
 
 async function main() {
@@ -9,7 +9,7 @@ async function main() {
 
   const DCA_CORE_ADDRESS = CORE_ADDRESS[chainId];
   const TOKEN_IN_ADDRESS = USDC_ADDRESS[chainId];
-  const TOKEN_OUT_ADDRESS = WETH_ADDRESS[chainId];
+  const TOKEN_OUT_ADDRESS = WNATIVE_ADDRESS[chainId];
 
   const dcaCore = <DCACore>(
     await hre.ethers.getContractAt("DCACore", DCA_CORE_ADDRESS)

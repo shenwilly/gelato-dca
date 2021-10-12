@@ -2,13 +2,13 @@ import hre from "hardhat";
 import {
   POKEME_ADDRESS,
   SUSHISWAP_ROUTER_ADDRESS,
-  WETH_ADDRESS,
+  WNATIVE_ADDRESS,
 } from "../constants";
 import { DCACoreResolver__factory, DCACore__factory } from "../typechain";
 
 async function main() {
   const [signer] = await hre.ethers.getSigners();
-  const chainId = 3;
+  const chainId = 137;
   const DCACoreFactory = <DCACore__factory>(
     await hre.ethers.getContractFactory("DCACore", signer)
   );
@@ -16,7 +16,7 @@ async function main() {
   const dcaCore = await DCACoreFactory.deploy(
     SUSHISWAP_ROUTER_ADDRESS[chainId],
     POKEME_ADDRESS[chainId],
-    WETH_ADDRESS[chainId]
+    WNATIVE_ADDRESS[chainId]
   );
   await dcaCore.deployed();
   console.log("DCACore deployed to:", dcaCore.address);
