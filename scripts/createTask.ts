@@ -11,7 +11,7 @@ import { DCACore, DCACoreResolver, IPokeMe, ITaskTreasury } from "../typechain";
 
 async function main() {
   const [signer] = await hre.ethers.getSigners();
-  const chainId = 3;
+  const chainId = 137;
 
   const DCA_CORE_ADDRESS = CORE_ADDRESS[chainId];
   const DCA_RESOLVER_ADDRESS = RESOLVER_ADDRESS[chainId];
@@ -32,17 +32,18 @@ async function main() {
       TASK_TREASURY_ADDRESS[chainId]
     )
   );
-  await taskTreasury
+  const txDeposit = await taskTreasury
     .connect(signer)
     .depositFunds(signer.address, ETH_TOKEN_ADDRESS, 0, {
-      value: parseEther("0.5"),
+      value: parseEther("5"),
     });
+  console.log("Deposit:", txDeposit.hash);
+  await txDeposit.wait();
 
   const executeDCAsSelector = dcaCore.interface.getSighash("executeDCAs");
   const resolverData = resolver.interface.encodeFunctionData(
     "getExecutablePositions"
   );
-
   const tx = await pokeMe
     .connect(signer)
     .createTask(
@@ -51,7 +52,7 @@ async function main() {
       resolver.address,
       resolverData
     );
-  console.log(tx.hash);
+  console.log("Create task:", tx.hash);
   await tx.wait();
 
   console.log("CONFIRMED");
