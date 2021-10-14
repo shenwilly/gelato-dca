@@ -67,6 +67,7 @@ const config: HardhatUserConfig = {
       accounts: [ROPSTEN_PRIVATE_KEY],
     },
     polygon: {
+      chainId: 137,
       url: NETWORK_POLYGON_URL,
       accounts: [POLYGON_PRIVATE_KEY],
     },

@@ -9,6 +9,7 @@ import { DCACoreResolver__factory, DCACore__factory } from "../typechain";
 async function main() {
   const [signer] = await hre.ethers.getSigners();
   const chainId = 137;
+
   const DCACoreFactory = <DCACore__factory>(
     await hre.ethers.getContractFactory("DCACore", signer)
   );
@@ -18,6 +19,7 @@ async function main() {
     POKEME_ADDRESS[chainId],
     WNATIVE_ADDRESS[chainId]
   );
+  console.log("DCACore TxHash:", dcaCore.deployTransaction.hash);
   await dcaCore.deployed();
   console.log("DCACore deployed to:", dcaCore.address);
 
@@ -28,6 +30,7 @@ async function main() {
     dcaCore.address,
     SUSHISWAP_ROUTER_ADDRESS[chainId]
   );
+  console.log("Resolver TxHash:", resolver.deployTransaction.hash);
   await resolver.deployed();
   console.log("Resolver deployed to:", resolver.address);
 }
