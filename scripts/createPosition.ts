@@ -1,17 +1,23 @@
-import { parseUnits } from "ethers/lib/utils";
+import { parseEther, parseUnits } from "ethers/lib/utils";
 import hre from "hardhat";
-import { CORE_ADDRESS, USDC_ADDRESS, WETH_ADDRESS } from "../constants";
+import {
+  CORE_ADDRESS,
+  ETH_TOKEN_ADDRESS,
+  USDC_ADDRESS,
+  WETH_ADDRESS,
+  WNATIVE_ADDRESS,
+} from "../constants";
 import { DCACore, IERC20 } from "../typechain";
 
 async function main() {
   const [signer] = await hre.ethers.getSigners();
-  const chainId = 3;
+  const chainId = 137;
 
   const DCA_CORE_ADDRESS = CORE_ADDRESS[chainId];
-  const TOKEN_IN_ADDRESS = USDC_ADDRESS[chainId];
-  const TOKEN_OUT_ADDRESS = WETH_ADDRESS[chainId];
-  const AMOUNT_IN = parseUnits("1000", "6");
-  const AMOUNT_DCA = parseUnits("100", "6");
+  const TOKEN_IN_ADDRESS = ETH_TOKEN_ADDRESS;
+  const TOKEN_OUT_ADDRESS = "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619";
+  const AMOUNT_IN = parseEther("1");
+  const AMOUNT_DCA = parseEther("0.25");
   const INTERVAL = 900;
 
   const dcaCore = <DCACore>(
@@ -31,10 +37,13 @@ async function main() {
     .createPositionAndDeposit(
       TOKEN_IN_ADDRESS,
       TOKEN_OUT_ADDRESS,
-      AMOUNT_IN,
+      0,
       AMOUNT_DCA,
       INTERVAL,
-      slippage
+      slippage,
+      {
+        value: AMOUNT_IN,
+      }
     );
   console.log(tx.hash);
   await tx.wait();
