@@ -17,6 +17,7 @@ import {
   getCurrentTimestamp,
   getNextPositionId,
   mintUsdc,
+  setTokenPairAllowance,
 } from "../helpers/utils";
 import { parseEther, parseUnits } from "@ethersproject/units";
 
@@ -108,9 +109,7 @@ describe("DCACore", function () {
       ).to.be.revertedWith("System is paused");
     });
     it("should revert if token pair is not allowed", async () => {
-      await dcaCore
-        .connect(deployer)
-        .setAllowedTokenPair(usdc.address, weth.address, false);
+      await setTokenPairAllowance(dcaCore, usdc.address, weth.address, false);
       await expect(
         dcaCore
           .connect(alice)
@@ -138,9 +137,6 @@ describe("DCACore", function () {
           )
       ).to.be.revertedWith("Invalid inputs");
 
-      await dcaCore
-        .connect(deployer)
-        .setAllowedTokenPair(weth.address, usdc.address, true);
       await expect(
         dcaCore
           .connect(alice)
@@ -214,9 +210,7 @@ describe("DCACore", function () {
 
       const balanceContractBefore = await weth.balanceOf(dcaCore.address);
 
-      await dcaCore
-        .connect(deployer)
-        .setAllowedTokenPair(weth.address, usdc.address, true);
+      await setTokenPairAllowance(dcaCore, usdc.address, weth.address, true);
       const amountFund = parseEther("1");
       const amountDCA = amountFund.div(10);
 
@@ -445,9 +439,7 @@ describe("DCACore", function () {
     beforeEach(async () => {
       positionId = await getNextPositionId(dcaCore);
 
-      await dcaCore
-        .connect(deployer)
-        .setAllowedTokenPair(weth.address, usdc.address, true);
+      await setTokenPairAllowance(dcaCore, usdc.address, weth.address, true);
       amountFund = parseEther("1");
       amountDCA = amountFund.div(10);
 
@@ -655,9 +647,7 @@ describe("DCACore", function () {
       expect(positionPost[5]).to.be.eq(0);
     });
     it("should withdraw ETH", async () => {
-      await dcaCore
-        .connect(deployer)
-        .setAllowedTokenPair(weth.address, usdc.address, true);
+      await setTokenPairAllowance(dcaCore, usdc.address, weth.address, true);
       const positionId = await getNextPositionId(dcaCore);
 
       const amountFund = parseEther("1");
@@ -781,9 +771,7 @@ describe("DCACore", function () {
       expect(positionPost[5]).to.be.eq(0);
     });
     it("should withdraw all tokenIn and tokenOut (ETH)", async () => {
-      await dcaCore
-        .connect(deployer)
-        .setAllowedTokenPair(weth.address, usdc.address, true);
+      await setTokenPairAllowance(dcaCore, usdc.address, weth.address, true);
       const positionId = await getNextPositionId(dcaCore);
 
       const amountFund = parseEther("1");
@@ -1127,16 +1115,85 @@ describe("DCACore", function () {
       expect(
         await dcaCore.allowedTokenPairs(usdc.address, weth.address)
       ).to.be.eq(true);
-      await expect(
-        dcaCore
-          .connect(deployer)
-          .setAllowedTokenPair(usdc.address, weth.address, false)
-      )
+      expect(
+        await dcaCore.allowedTokenPairs(weth.address, usdc.address)
+      ).to.be.eq(true);
+
+      const tx = await dcaCore
+        .connect(deployer)
+        .setAllowedTokenPair(usdc.address, weth.address, false);
+      expect(tx)
         .to.emit(dcaCore, "AllowedTokenPairSet")
         .withArgs(usdc.address, weth.address, false);
+      expect(tx)
+        .to.emit(dcaCore, "AllowedTokenPairSet")
+        .withArgs(weth.address, usdc.address, false);
+
       expect(
         await dcaCore.allowedTokenPairs(usdc.address, weth.address)
       ).to.be.eq(false);
+      expect(
+        await dcaCore.allowedTokenPairs(weth.address, usdc.address)
+      ).to.be.eq(false);
+    });
+  });
+
+  describe("setAllowedPairs()", async () => {
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        dcaCore
+          .connect(alice)
+          .setAllowedTokenPairs([usdc.address], [weth.address], [false])
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+    it("should revert if params length not equal", async () => {
+      await expect(
+        dcaCore
+          .connect(deployer)
+          .setAllowedTokenPairs([usdc.address], [weth.address], [])
+      ).to.be.revertedWith("Invalid length");
+      await expect(
+        dcaCore
+          .connect(deployer)
+          .setAllowedTokenPairs([usdc.address], [], [false])
+      ).to.be.revertedWith("Invalid length");
+      await expect(
+        dcaCore
+          .connect(deployer)
+          .setAllowedTokenPairs([], [weth.address], [false])
+      ).to.be.revertedWith("Invalid length");
+    });
+    it("should set new value", async () => {
+      expect(
+        await dcaCore.allowedTokenPairs(usdc.address, weth.address)
+      ).to.be.eq(true);
+      expect(
+        await dcaCore.allowedTokenPairs(weth.address, usdc.address)
+      ).to.be.eq(true);
+
+      const tokenExtra0 = "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270";
+      const tokenExtra1 = "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce";
+
+      await dcaCore
+        .connect(deployer)
+        .setAllowedTokenPairs(
+          [usdc.address, tokenExtra0],
+          [weth.address, tokenExtra1],
+          [false, true]
+        );
+
+      expect(
+        await dcaCore.allowedTokenPairs(usdc.address, weth.address)
+      ).to.be.eq(false);
+      expect(
+        await dcaCore.allowedTokenPairs(weth.address, usdc.address)
+      ).to.be.eq(false);
+      expect(
+        await dcaCore.allowedTokenPairs(tokenExtra0, tokenExtra1)
+      ).to.be.eq(true);
+      expect(
+        await dcaCore.allowedTokenPairs(tokenExtra1, tokenExtra0)
+      ).to.be.eq(true);
     });
   });
 

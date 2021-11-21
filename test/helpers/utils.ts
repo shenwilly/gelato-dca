@@ -10,8 +10,19 @@ export const getNextPositionId = async (
   return await dcaCore.getNextPositionId();
 };
 
+export const setTokenPairAllowance = async (
+  dcaCore: DCACore,
+  token0: string,
+  token1: string,
+  value: boolean
+): Promise<void> => {
+  const allowed = await dcaCore.allowedTokenPairs(token0, token1);
+  if (allowed === value) return;
+  await dcaCore.setAllowedTokenPair(token0, token1, value);
+};
+
 export const mintUsdc = async (amount: BigNumberish, to: string) => {
-  const usdc = await ethers.getContractAt("IERC20", USDC_ADDRESS);
+  const usdc = await ethers.getContractAt("IERC20", USDC_ADDRESS[1]);
 
   await network.provider.request({
     method: "hardhat_impersonateAccount",
