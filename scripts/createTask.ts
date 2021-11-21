@@ -35,7 +35,7 @@ async function main() {
   const txDeposit = await taskTreasury
     .connect(signer)
     .depositFunds(signer.address, ETH_TOKEN_ADDRESS, 0, {
-      value: parseEther("5"),
+      value: parseEther("2"),
     });
   console.log("Deposit:", txDeposit.hash);
   await txDeposit.wait();
