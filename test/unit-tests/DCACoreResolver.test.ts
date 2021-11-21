@@ -59,13 +59,13 @@ describe("DCACoreResolver", function () {
     aliceAddress = alice.address;
     bobAddress = bob.address;
 
-    usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS);
+    usdc = <IERC20>await ethers.getContractAt("IERC20", USDC_ADDRESS[chainId]);
     weth = <IERC20>await ethers.getContractAt("IERC20", WETH_ADDRESS[chainId]);
 
     defaultFund = parseUnits("10000", USDC_DECIMALS);
     defaultDCA = defaultFund.div(10);
     defaultInterval = 60; // second;
-    defaultSwapPath = [USDC_ADDRESS, weth.address];
+    defaultSwapPath = [USDC_ADDRESS[chainId], weth.address];
 
     const DCACoreFactory = (await ethers.getContractFactory(
       "DCACore",
