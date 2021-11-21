@@ -256,15 +256,30 @@ contract DCACore is IDCACore, Ownable {
         address _tokenIn,
         address _tokenOut,
         bool _allowed
-    ) external onlyOwner {
+    ) public onlyOwner {
         require(_tokenIn != _tokenOut, "Duplicate tokens");
         require(
             allowedTokenPairs[_tokenIn][_tokenOut] != _allowed,
             "Same _allowed value"
         );
         allowedTokenPairs[_tokenIn][_tokenOut] = _allowed;
+        allowedTokenPairs[_tokenOut][_tokenIn] = _allowed;
 
         emit AllowedTokenPairSet(_tokenIn, _tokenOut, _allowed);
+        emit AllowedTokenPairSet(_tokenOut, _tokenIn, _allowed);
+    }
+
+    function setAllowedTokenPairs(
+        address[] calldata _tokenIns,
+        address[] calldata _tokenOuts,
+        bool[] calldata _alloweds
+    ) external onlyOwner {
+        require(_tokenIns.length == _tokenOuts.length, "Invalid length");
+        require(_tokenIns.length == _alloweds.length, "Invalid length");
+
+        for (uint256 i = 0; i < _tokenIns.length; i++) {
+            setAllowedTokenPair(_tokenIns[i], _tokenOuts[i], _alloweds[i]);
+        }
     }
 
     function setMinSlippage(uint256 _minSlippage) external onlyOwner {
